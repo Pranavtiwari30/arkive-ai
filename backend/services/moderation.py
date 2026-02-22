@@ -1,33 +1,41 @@
-import re
+from groq import Groq
+from dotenv import load_dotenv
+import os
 
-# List of harmful keywords to flag
-HARMFUL_PATTERNS = [
-    r'\b(bomb|explosive|weapon|kill|murder|suicide|hack|malware|virus)\b',
-    r'\b(drugs|cocaine|heroin|meth)\b',
-    r'\b(racist|hate speech|slur)\b',
-]
-
-FLAGGED_RESPONSES = {
-    "violence": "This query contains violent or harmful content.",
-    "drugs": "This query references illegal substances.",
-    "hate": "This query contains potentially hateful content.",
-}
+load_dotenv()
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 def moderate_query(query: str) -> dict:
     """
-    Checks if a query contains harmful content.
-    Returns: { "is_flagged": bool, "reason": str or None }
+    Uses Meta's Llama Guard 3 to detect harmful content.
+    Much more intelligent than keyword matching.
     """
-    query_lower = query.lower()
+    try:
+        response = client.chat.completions.create(
+            model="llama-guard-3-8b",
+            messages=[
+                {
+                    "role": "user",
+                    "content": query
+                }
+            ],
+            max_tokens=10
+        )
 
-    # Check against harmful patterns
-    if re.search(HARMFUL_PATTERNS[0], query_lower):
-        return {"is_flagged": True, "reason": "violence/harmful content detected"}
-    
-    if re.search(HARMFUL_PATTERNS[1], query_lower):
-        return {"is_flagged": True, "reason": "illegal substances detected"}
-    
-    if re.search(HARMFUL_PATTERNS[2], query_lower):
-        return {"is_flagged": True, "reason": "hate speech detected"}
+        result = response.choices[0].message.content.strip().lower()
+        print(f"🛡️ Llama Guard result: {result}")
 
-    return {"is_flagged": False, "reason": None}
+        if result.startswith("unsafe"):
+            # Extract category if available e.g. "unsafe\ns6"
+            category = result.split("\n")[1].strip() if "\n" in result else "unsafe content"
+            return {
+                "is_flagged": True,
+                "reason": f"Content policy violation detected ({category})"
+            }
+
+        return {"is_flagged": False, "reason": None}
+
+    except Exception as e:
+        print(f"⚠️ Moderation error: {e}")
+        # Fail safe — if moderation errors, allow through but log it
+        return {"is_flagged": False, "reason": None}

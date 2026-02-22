@@ -1,6 +1,6 @@
 import "./Sidebar.css"
 
-function Sidebar({ activeTab, setActiveTab }) {
+function Sidebar({ activeTab, setActiveTab, user, onLogout }) {
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
@@ -28,6 +28,18 @@ function Sidebar({ activeTab, setActiveTab }) {
           🔒 Audit Logs
         </button>
       </nav>
+
+      <div className="sidebar-user">
+        <div className="user-info">
+          <div className="user-avatar">
+            {user?.charAt(0).toUpperCase()}
+          </div>
+          <span className="user-name">{user}</span>
+        </div>
+        <button className="logout-btn" onClick={onLogout}>
+          ↩️
+        </button>
+      </div>
 
       <div className="sidebar-footer">
         <p>Powered by RAG + Groq</p>

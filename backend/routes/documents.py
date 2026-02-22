@@ -10,37 +10,42 @@ router = APIRouter()
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# These are permanently stored — never auto-deleted
+PERMANENT_DOCS = ["unesco-ai.pdf", "oecd.pdf"]
+
 @router.post("/upload")
 async def upload_document(file: UploadFile = File(...), user_id: str = "anonymous"):
-    """
-    Upload a PDF, chunk it, embed it, store in ChromaDB + MongoDB.
-    """
-    # Save file to uploads/
     file_path = os.path.join(UPLOAD_DIR, file.filename)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # Ingest + embed
-    chunks, doc_id = ingest_document(file_path, uploaded_by=user_id)
+    # Check if this is a permanent core knowledge doc
+    is_permanent = file.filename in PERMANENT_DOCS
+
+    chunks, doc_id = ingest_document(
+        file_path,
+        uploaded_by=user_id,
+        is_permanent=is_permanent
+    )
     add_chunks_to_vector_store(chunks, doc_id)
 
-    # Audit log
     log_event("document_upload", user_id, {
         "filename": file.filename,
         "doc_id": doc_id,
-        "total_chunks": len(chunks)
+        "total_chunks": len(chunks),
+        "is_permanent": is_permanent
     })
 
+    label = "📌 permanent knowledge base" if is_permanent else "⏳ expires in 7 days"
+
     return {
-        "message": f"✅ Document '{file.filename}' uploaded successfully!",
+        "message": f"✅ '{file.filename}' uploaded! ({label})",
         "doc_id": doc_id,
-        "total_chunks": len(chunks)
+        "total_chunks": len(chunks),
+        "is_permanent": is_permanent
     }
 
 @router.get("/")
 async def list_documents():
-    """
-    Returns all uploaded documents.
-    """
-    docs = list(documents_col.find({}, {"_id": 0}))
+    docs = list(documents_col.find({}, {"_id": 0, "embedding": 0}))
     return {"documents": docs}

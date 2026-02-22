@@ -3,16 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Arkive AI", version="1.0.0")
 
-# Allow React frontend to talk to this backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # React dev server
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Import routes
 from routes import chat, documents, audit
 
 app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])

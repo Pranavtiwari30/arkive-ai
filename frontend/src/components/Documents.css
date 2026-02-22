@@ -1,0 +1,102 @@
+.tab-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #0f0f13;
+}
+
+.tab-header {
+  padding: 20px 32px;
+  border-bottom: 1px solid #2a2a3d;
+  background: #13131f;
+}
+
+.tab-header h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.tab-header p {
+  font-size: 13px;
+  color: #6666aa;
+  margin-top: 2px;
+}
+
+.loading, .empty {
+  padding: 40px 32px;
+  color: #6666aa;
+  font-size: 14px;
+}
+
+.docs-grid {
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.doc-card {
+  background: #13131f;
+  border: 1px solid #2a2a3d;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: border 0.2s;
+}
+
+.doc-card:hover {
+  border-color: #4a4080;
+}
+
+.doc-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.doc-info {
+  flex: 1;
+}
+
+.doc-info h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin-bottom: 6px;
+}
+
+.doc-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #6666aa;
+}
+
+.doc-date {
+  font-size: 11px;
+  color: #44445a;
+  margin-top: 4px;
+}
+
+.doc-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.doc-badge.permanent {
+  background: #1a2a1a;
+  border: 1px solid #2a5a2a;
+  color: #4ade80;
+}
+
+.doc-badge.temporary {
+  background: #2a1a1a;
+  border: 1px solid #5a3a1a;
+  color: #fb923c;
+}

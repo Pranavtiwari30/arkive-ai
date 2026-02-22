@@ -1,71 +1,78 @@
-import chromadb
 from sentence_transformers import SentenceTransformer
-import os
+from db.mongo import db
+from datetime import datetime
 
-# Load the embedding model (downloads once, then cached)
 print("🔄 Loading embedding model...")
 model = SentenceTransformer('all-MiniLM-L6-v2')
-print("✅ Embedding model loaded!")
+print(" Embedding model loaded!")
 
-# Set up ChromaDB with persistent storage
-chroma_client = chromadb.PersistentClient(path="./chroma_db")
-collection = chroma_client.get_or_create_collection(
-    name="arkive_chunks",
-    metadata={"hnsw:space": "cosine"}  # cosine similarity for text
-)
+embeddings_col = db["embeddings"]
+
+# TTL index on embeddings — auto delete non-permanent after 7 days
+try:
+    embeddings_col.create_index(
+        "uploaded_at",
+        expireAfterSeconds=604800,
+        partialFilterExpression={"is_permanent": {"$ne": True}}
+    )
+except:
+    pass
 
 def add_chunks_to_vector_store(chunks: list, doc_id: str):
     """
-    Takes chunks from ingestion, generates embeddings, stores in ChromaDB.
-    chunks = list of dicts with 'text', 'chunk_index', 'source'
+    Generates embeddings and stores in MongoDB Atlas.
     """
     print(f"⚙️  Generating embeddings for {len(chunks)} chunks...")
 
-    texts = [chunk["text"] for chunk in chunks]
-    embeddings = model.encode(texts, show_progress_bar=True).tolist()
+    for chunk in chunks:
+        embedding = model.encode(chunk["text"]).tolist()
+        embeddings_col.update_one(
+            {"doc_id": doc_id, "chunk_index": chunk["chunk_index"]},
+            {"$set": {
+                "doc_id": doc_id,
+                "chunk_index": chunk["chunk_index"],
+                "text": chunk["text"],
+                "source": chunk["source"],
+                "page": chunk["page"],
+                "embedding": embedding,
+                "is_permanent": chunk.get("is_permanent", False),
+                "uploaded_at": datetime.utcnow()
+            }},
+            upsert=True
+        )
 
-    ids = [f"{doc_id}_chunk_{chunk['chunk_index']}" for chunk in chunks]
-
-    metadatas = [{
-        "doc_id": chunk["doc_id"],
-        "chunk_index": chunk["chunk_index"],
-        "source": chunk["source"],
-        "page": chunk["page"]
-    } for chunk in chunks]
-
-    # Store everything in ChromaDB
-    collection.add(
-        embeddings=embeddings,
-        documents=texts,
-        metadatas=metadatas,
-        ids=ids
-    )
-
-    print(f"✅ {len(chunks)} chunks stored in ChromaDB!")
-    return ids
+    print(f" {len(chunks)} chunks stored in MongoDB!")
 
 def retrieve_relevant_chunks(query: str, top_k: int = 3):
     """
-    Takes a user query, finds the most semantically similar chunks.
-    Returns list of relevant text chunks with their sources.
+    Semantic search using MongoDB Atlas Vector Search.
     """
-    print(f"🔍 Searching for: '{query}'")
+    print(f" Searching for: '{query}'")
 
-    query_embedding = model.encode([query]).tolist()
+    query_embedding = model.encode(query).tolist()
 
-    results = collection.query(
-        query_embeddings=query_embedding,
-        n_results=top_k
-    )
+    pipeline = [
+        {
+            "$vectorSearch": {
+                "index": "vector_index",
+                "path": "embedding",
+                "queryVector": query_embedding,
+                "numCandidates": 50,
+                "limit": top_k
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "text": 1,
+                "source": 1,
+                "page": 1,
+                "chunk_index": 1,
+                "score": {"$meta": "vectorSearchScore"}
+            }
+        }
+    ]
 
-    chunks = []
-    for i in range(len(results["documents"][0])):
-        chunks.append({
-            "text": results["documents"][0][i],
-            "source": results["metadatas"][0][i]["source"],
-            "page": results["metadatas"][0][i]["page"],
-            "chunk_index": results["metadatas"][0][i]["chunk_index"]
-        })
-
-    print(f"✅ Found {len(chunks)} relevant chunks!")
-    return chunks
+    results = list(embeddings_col.aggregate(pipeline))
+    print(f" Found {len(results)} relevant chunks!")
+    return results
