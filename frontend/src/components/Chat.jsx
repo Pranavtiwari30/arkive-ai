@@ -3,7 +3,7 @@ import axios from "axios"
 import ReactMarkdown from "react-markdown"
 import "./Chat.css"
 
-const API = "http://127.0.0.1:8000"
+const API = "https://arkive-ai-backend.onrender.com"
 
 function Chat({ userId }) {
   const [messages, setMessages] = useState([

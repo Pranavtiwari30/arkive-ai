@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import axios from "axios"
 import "./AuditLogs.css"
 
-const API = "http://127.0.0.1:8000"
+const API = "https://arkive-ai-backend.onrender.com"
 
 function AuditLogs() {
   const [logs, setLogs] = useState([])
