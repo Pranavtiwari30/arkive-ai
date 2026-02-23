@@ -5,7 +5,11 @@ app = FastAPI(title="Arkive AI", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "https://arkive-ai.vercel.app",
+        "https://arkive-ai-pranavtiwari30s-projects.vercel.app"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
