@@ -104,7 +104,7 @@ Create a vector search index on the `embeddings` collection with this config:
 ```
 
 ### 5. Open the app
-Visit 👉 http://localhost:5173
+Visit 👉 https://arkive-ai.vercel.app/
 
 ---
 
