@@ -1,3 +1,34 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+:root {
+  --white: #ffffff;
+  --grey-50: #f8f8f6;
+  --grey-100: #f0efec;
+  --grey-200: #e4e2dc;
+  --grey-300: #c8c4bb;
+  --grey-500: #8a8478;
+  --grey-700: #4a4640;
+  --grey-900: #1c1a17;
+  --ink: #111009;
+  --gold: #c4952a;
+  --gold-light: #f5e6c0;
+  --gold-pale: #fdf8ee;
+  --green: #2d6a4f;
+  --green-light: #d8f3dc;
+  --red: #a63232;
+  --red-light: #fde8e8;
+  --blue: #1a3a5c;
+  --blue-light: #e8f0f8;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--grey-50);
+  color: var(--ink);
+}
+
 .app-container {
   display: flex;
   height: 100vh;

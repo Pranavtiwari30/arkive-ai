@@ -10,9 +10,8 @@ __pycache__/
 # ChromaDB
 backend/chroma_db/
 
-# Uploaded files
-backend/uploads/
-!backend/uploads/.gitkeep
+# User uploaded files only — keep knowledge base PDFs
+backend/uploads/temp_*
 
 # Node modules
 node_modules/
