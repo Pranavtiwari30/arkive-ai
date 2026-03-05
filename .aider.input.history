@@ -1,0 +1,38 @@
+
+# 2026-02-21 21:33:03.928879
++Y
+
+# 2026-02-21 21:34:26.815872
++N
+
+# 2026-02-21 21:34:56.765988
++$env:OLLAMA_API_BASE="http://localhost:11434"
+
+# 2026-02-21 21:35:33.089060
++N
+
+# 2026-02-21 21:54:18.313632
++Create the initial project structure for Arkive AI.
++
++arkive-ai/
++├── backend/
++│   ├── main.py
++│   ├── routes/
++│   ├── services/
++│   ├── models/
++│   └── db/
++├── frontend/
++└── requirements.txt
++
++Use FastAPI for backend.
++Create empty __init__.py files where needed.
++Add minimal starter code in main.py with FastAPI app initialization.
+
+# 2026-02-21 21:54:52.831150
++Y
+
+# 2026-02-21 21:59:14.134326
++code arkive-ai\requirements.txt
+
+# 2026-02-21 22:03:28.744039
++/exit

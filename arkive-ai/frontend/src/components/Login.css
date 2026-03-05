@@ -1,0 +1,203 @@
+.login-screen {
+  display: flex;
+  height: 100vh;
+  background: var(--white);
+}
+
+.login-left {
+  width: 46%;
+  background: var(--ink);
+  padding: 52px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-left::before {
+  content: '';
+  position: absolute;
+  top: -120px;
+  right: -120px;
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(196,149,42,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.login-left::after {
+  content: '';
+  position: absolute;
+  bottom: -80px;
+  left: -80px;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(196,149,42,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  position: relative;
+  z-index: 1;
+}
+
+.login-brand-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--gold);
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.login-brand-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: white;
+}
+
+.login-hero {
+  position: relative;
+  z-index: 1;
+}
+
+.login-hero h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 42px;
+  font-weight: 700;
+  color: white;
+  line-height: 1.2;
+  margin-bottom: 16px;
+}
+
+.login-hero h1 span { color: var(--gold); }
+
+.login-hero p {
+  font-size: 14.5px;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.7;
+  max-width: 360px;
+}
+
+.login-standards {
+  display: flex;
+  gap: 7px;
+  position: relative;
+  z-index: 1;
+  flex-wrap: wrap;
+}
+
+.std-tag {
+  padding: 5px 13px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 5px;
+  font-size: 11.5px;
+  color: rgba(255,255,255,0.6);
+  font-family: 'DM Mono', monospace;
+}
+
+.login-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 52px;
+  background: var(--grey-50);
+}
+
+.login-form-card {
+  width: 100%;
+  max-width: 360px;
+}
+
+.login-form-card h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 5px;
+}
+
+.login-form-sub {
+  font-size: 13.5px;
+  color: var(--grey-500);
+  margin-bottom: 28px;
+}
+
+.form-group { margin-bottom: 16px; }
+
+.form-label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--grey-700);
+  margin-bottom: 6px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.form-input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid var(--grey-200);
+  border-radius: 9px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--white);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.form-input:focus { border-color: var(--ink); }
+.form-input::placeholder { color: var(--grey-300); }
+
+.form-error {
+  font-size: 12px;
+  color: var(--red);
+  margin-top: 5px;
+}
+
+.login-submit {
+  width: 100%;
+  padding: 13px;
+  background: var(--ink);
+  color: white;
+  border: none;
+  border-radius: 9px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.login-submit:hover { background: var(--grey-900); }
+
+.login-trust {
+  display: flex;
+  gap: 14px;
+  margin-top: 22px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.trust-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--grey-500);
+}
