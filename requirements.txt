@@ -1,0 +1,17 @@
+fastapi
+uvicorn[standard]
+pydantic
+python-dotenv
+
+# Database
+pymongo
+motor
+
+# RAG + embeddings
+langchain
+langchain-community
+chromadb
+sentence-transformers
+
+# Document processing
+pymupdf
