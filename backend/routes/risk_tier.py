@@ -12,6 +12,7 @@ async def classify_risk(
     result = classify_risk_tier(
         description=request.system_description,
         purpose=request.intended_purpose,
-        data=request.data_used
+        data=request.data_used,
+        jurisdiction_context=request.jurisdiction_context
     )
     return result

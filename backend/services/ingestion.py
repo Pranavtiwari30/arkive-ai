@@ -12,11 +12,7 @@ except ImportError:
     OCR_AVAILABLE = False
 
 def ingest_document(file_path: str, uploaded_by: str = "user", is_permanent: bool = False, password: str = None, version: str = None, source_url: str = None, supersedes: str = None):
-    """
-    Takes a PDF file path, extracts text (with layout sorting and OCR fallback),
-    chunks it, saves metadata to MongoDB.
-    """
-    print(f"📄 Loading document: {file_path}")
+    print(f"Loading document: {file_path}")
 
     doc = fitz.open(file_path)
     if doc.needs_pass:
@@ -46,14 +42,14 @@ def ingest_document(file_path: str, uploaded_by: str = "user", is_permanent: boo
             text = pytesseract.image_to_string(img)
             pages.append(Document(page_content=text, metadata={"page": i + 1}))
 
-    print(f" Loaded {len(pages)} pages")
+    print(f"Loaded {len(pages)} pages")
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=500,
         chunk_overlap=50
     )
     chunks = splitter.split_documents(pages)
-    print(f" Split into {len(chunks)} chunks")
+    print(f"Split into {len(chunks)} chunks")
 
     doc_record = {
         "filename": os.path.basename(file_path),
@@ -70,7 +66,7 @@ def ingest_document(file_path: str, uploaded_by: str = "user", is_permanent: boo
     }
     result = documents_col.insert_one(doc_record)
     doc_id = str(result.inserted_id)
-    print(f" Saved to MongoDB with ID: {doc_id}")
+    print(f"Saved to MongoDB with ID: {doc_id}")
 
     chunk_data = []
     for i, chunk in enumerate(chunks):

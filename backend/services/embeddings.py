@@ -2,9 +2,9 @@ from sentence_transformers import SentenceTransformer
 from db.mongo import db
 from datetime import datetime
 
-print("🔄 Loading embedding model...")
+print("Loading embedding model...")
 model = SentenceTransformer('all-MiniLM-L6-v2')
-print(" Embedding model loaded!")
+print("Embedding model loaded!")
 
 embeddings_col = db["embeddings"]
 
@@ -19,10 +19,7 @@ except:
     pass
 
 def add_chunks_to_vector_store(chunks: list, doc_id: str):
-    """
-    Generates embeddings and stores in MongoDB Atlas.
-    """
-    print(f"⚙️  Generating embeddings for {len(chunks)} chunks...")
+    print(f"Generating embeddings for {len(chunks)} chunks...")
 
     for chunk in chunks:
         embedding = model.encode(chunk["text"]).tolist()
@@ -41,13 +38,10 @@ def add_chunks_to_vector_store(chunks: list, doc_id: str):
             upsert=True
         )
 
-    print(f" {len(chunks)} chunks stored in MongoDB!")
+    print(f"{len(chunks)} chunks stored in MongoDB!")
 
 def retrieve_relevant_chunks(query: str, top_k: int = 3):
-    """
-    Semantic search using MongoDB Atlas Vector Search.
-    """
-    print(f" Searching for: '{query}'")
+    print(f"Searching for: '{query}'")
 
     query_embedding = model.encode(query).tolist()
 
@@ -74,5 +68,5 @@ def retrieve_relevant_chunks(query: str, top_k: int = 3):
     ]
 
     results = list(embeddings_col.aggregate(pipeline))
-    print(f" Found {len(results)} relevant chunks!")
+    print(f"Found {len(results)} relevant chunks!")
     return results

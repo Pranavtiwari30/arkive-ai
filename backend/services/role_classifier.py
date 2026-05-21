@@ -1,7 +1,11 @@
 import os
 from groq import Groq
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
+from typing import List, Optional
 import json
+import uuid
+from datetime import datetime, timezone
+import re
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
@@ -9,10 +13,28 @@ class RoleClassificationRequest(BaseModel):
     organization_name: str
     involvement: str
     system_origin: str
+    jurisdiction_context: Optional[str] = None
+
+class ObligationItem(BaseModel):
+    obligation: str
+    article: str
+
+class RoleClassificationResult(BaseModel):
+    roles: List[str]
+    primary_role: str
+    legal_basis: List[str]
+    decision_path: str
+    reasoning: str
+    obligations: List[ObligationItem] = []
+    dual_role: bool
+    cannot_determine_reason: Optional[str] = None
+    classification_id: Optional[str] = None
+    generated_at: Optional[str] = None
+    disclaimer: Optional[str] = None
 
 ROLE_SYSTEM_PROMPT = """You are a legal classification engine specialising in the EU Artificial Intelligence Act (2024). Your sole function is to determine the correct legal role of an organisation under the EU AI Act.
 
-You must follow the DECISION TREE below in strict order before producing any output. Do not skip steps. Do not classify based on geography, company name, or intuition.
+You must follow the DECISION TREE below in strict order before producing any output. Do not classify based on geography, company name, or intuition.
 
 ---
 LEGAL DEFINITIONS — cite these articles exactly in your output:
@@ -100,20 +122,20 @@ OUTPUT FORMAT — you must respond with valid JSON only. No markdown. No preambl
 
 Do not invent roles not defined in the Act. Do not classify by analogy. Follow the decision tree exactly. Every output must cite the article that makes it correct."""
 
-import uuid
-from datetime import datetime, timezone
-import re
+def classify_role(name: str, involvement: str, origin: str, jurisdiction_context: str = None, retry: bool = False) -> dict:
+    """
+    Uses Llama-3 to classify an organization's role under the EU AI Act with strict schema validation.
+    """
+    user_prompt = f"Organisation Name: {name}\nInvolvement: {involvement}\nSystem Origin: {origin}"
+    if jurisdiction_context:
+        user_prompt += f"\nJurisdiction Onboarding Context: {jurisdiction_context}"
 
-def classify_role(name: str, involvement: str, origin: str, retry: bool = False) -> dict:
-    """
-    Uses Llama-3 to classify an organization's role under the EU AI Act.
-    """
     try:
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": ROLE_SYSTEM_PROMPT},
-                {"role": "user", "content": f"Organisation Name: {name}\nInvolvement: {involvement}\nSystem Origin: {origin}"}
+                {"role": "user", "content": user_prompt}
             ],
             temperature=0,
             response_format={"type": "json_object"}
@@ -122,17 +144,36 @@ def classify_role(name: str, involvement: str, origin: str, retry: bool = False)
         raw = response.choices[0].message.content.strip()
         raw_cleaned = re.sub(r"^```(?:json)?\s*", "", raw)
         raw_cleaned = re.sub(r"\s*```$", "", raw_cleaned)
-        result = json.loads(raw_cleaned)
+        
+        parsed_json = json.loads(raw_cleaned)
+        
+        # Enforce validation using Pydantic model
+        validated_model = RoleClassificationResult(**parsed_json)
+        result = validated_model.dict()
         
         result["classification_id"] = str(uuid.uuid4())
         result["generated_at"] = datetime.now(timezone.utc).isoformat()
         result["disclaimer"] = "This report is informational only and does not constitute legal advice or a conformity assessment."
         return result
         
-    except Exception as e:
+    except (json.JSONDecodeError, ValidationError, Exception) as e:
         if not retry:
-            return classify_role(name, involvement, origin, retry=True)
+            return classify_role(name, involvement, origin, jurisdiction_context, retry=True)
         print(f"Error in role classification: {e}")
-        return {
-            "error": "Failed to parse classification response. Please try again."
-        }
+        
+        # Safe structural fallback adhering to RoleClassificationResult schema
+        fallback = RoleClassificationResult(
+            roles=["Cannot Determine"],
+            primary_role="Cannot Determine",
+            legal_basis=["N/A"],
+            decision_path="N/A",
+            reasoning="An error occurred during strict validation or structure parsing of the role classification engine.",
+            obligations=[],
+            dual_role=False,
+            cannot_determine_reason=f"Failed to parse or validate structural output: {str(e)}",
+            classification_id=str(uuid.uuid4()),
+            generated_at=datetime.now(timezone.utc).isoformat(),
+            disclaimer="This report is informational only and does not constitute legal advice or a conformity assessment."
+        )
+        return fallback.dict()
+

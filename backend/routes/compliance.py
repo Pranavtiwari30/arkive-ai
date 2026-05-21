@@ -6,6 +6,8 @@ from groq import Groq
 from dotenv import load_dotenv
 from db.mongo import documents_col
 from middleware.auth import get_optional_user
+from pydantic import BaseModel, ValidationError
+from typing import List, Optional
 import os, shutil, json, re
 
 load_dotenv()
@@ -56,6 +58,20 @@ PILLARS = [
     },
 ]
 
+class PillarComplianceItem(BaseModel):
+    pillar_id: str
+    pillar_name: str
+    status: str
+    standards_referenced: List[str] = []
+    finding: str
+    gap_description: Optional[str] = None
+    recommendation: Optional[str] = None
+    confidence: float
+
+class ComplianceCheckResult(BaseModel):
+    compliance_score: int
+    overall_status: str
+    pillars: List[PillarComplianceItem]
 
 COMPLIANCE_SYSTEM_PROMPT = """You are an AI compliance auditor. Analyse the policy document excerpt and determine compliance against 8 ethical AI pillars.
 
@@ -89,12 +105,14 @@ Pillars to check:
 8. Inclusivity: Does this policy address accessibility, inclusion, or consideration of marginalized groups?
 """
 
-def evaluate_compliance(doc_chunks: list, retry: bool = False) -> dict:
+def evaluate_compliance(doc_chunks: list, jurisdiction_context: str = None, retry: bool = False) -> dict:
     context = ""
     for i, chunk in enumerate(doc_chunks[:6]):
         context += f"\n[Section {i+1}]\n{chunk['text']}\n"
         
     prompt = f"Policy Document Excerpt:\n{context}"
+    if jurisdiction_context:
+        prompt += f"\nJurisdiction Onboarding Context: {jurisdiction_context}"
     
     try:
         response = client.chat.completions.create(
@@ -111,14 +129,36 @@ def evaluate_compliance(doc_chunks: list, retry: bool = False) -> dict:
         raw_cleaned = re.sub(r"^```(?:json)?\s*", "", raw)
         raw_cleaned = re.sub(r"\s*```$", "", raw_cleaned)
         
-        result = json.loads(raw_cleaned)
-        if "pillars" not in result:
-            raise ValueError("Missing pillars in response")
-        return result
-    except Exception as e:
+        parsed_json = json.loads(raw_cleaned)
+        
+        # Enforce validation using Pydantic model
+        validated_model = ComplianceCheckResult(**parsed_json)
+        return validated_model.dict()
+        
+    except (json.JSONDecodeError, ValidationError, Exception) as e:
         if not retry:
-            return evaluate_compliance(doc_chunks, retry=True)
-        raise e
+            return evaluate_compliance(doc_chunks, jurisdiction_context, retry=True)
+        print(f"Error in compliance check: {e}")
+        
+        # Safe structural fallback adhering to ComplianceCheckResult schema
+        fallback = ComplianceCheckResult(
+            compliance_score=0,
+            overall_status="NON_COMPLIANT",
+            pillars=[
+                PillarComplianceItem(
+                    pillar_id=f"P0{idx+1}",
+                    pillar_name=p["label"],
+                    status="GAP",
+                    standards_referenced=[],
+                    finding="Structural validation or JSON parsing of compliance audit failed.",
+                    gap_description=f"Parsing error: {str(e)}",
+                    recommendation="Re-run the audit checking your connection and try again.",
+                    confidence=0.0
+                ) for idx, p in enumerate(PILLARS)
+            ]
+        )
+        return fallback.dict()
+
 
 import uuid
 from datetime import datetime, timezone

@@ -12,6 +12,7 @@ async def classify_org_role(
     result = classify_role(
         name=request.organization_name,
         involvement=request.involvement,
-        origin=request.system_origin
+        origin=request.system_origin,
+        jurisdiction_context=request.jurisdiction_context
     )
     return result

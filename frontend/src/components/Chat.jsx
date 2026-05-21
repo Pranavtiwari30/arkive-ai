@@ -7,6 +7,7 @@ function Chat({ userId }) {
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [uploadPassword, setUploadPassword] = useState("")
   const [sessionId, setSessionId] = useState(null)
   const [sessions, setSessions] = useState([])
   const [showSessions, setShowSessions] = useState(false)
@@ -105,6 +106,9 @@ function Chat({ userId }) {
     setUploading(true)
     const formData = new FormData()
     formData.append("file", file)
+    if (uploadPassword) {
+      formData.append("password", uploadPassword)
+    }
     try {
       const res = await api.post(`/api/documents/upload`, formData)
       setMessages(prev => [...prev.filter(m => m !== null), {
@@ -113,11 +117,13 @@ function Chat({ userId }) {
         sources: [],
         confidence: 0
       }])
+      setUploadPassword("")
     } catch (err) {
       console.error(err)
+      const detailMsg = err.response?.data?.detail || "Upload failed. Please try again."
       setMessages(prev => [...prev.filter(m => m !== null), {
         role: "assistant",
-        content: "Upload failed. Please try again.",
+        content: `Upload failed: ${detailMsg}`,
         sources: [],
         confidence: 0
       }])
@@ -281,6 +287,25 @@ function Chat({ userId }) {
             onKeyDown={e => e.key === "Enter" && sendMessage()}
             placeholder="Ask about AI standards, compliance requirements..."
             disabled={loading}
+          />
+          <input
+            type="password"
+            className="chat-pdf-password-input"
+            value={uploadPassword}
+            onChange={e => setUploadPassword(e.target.value)}
+            placeholder="PDF Pass (optional)"
+            title="Optional password for password-protected PDFs"
+            style={{
+              width: '120px',
+              border: 'none',
+              outline: 'none',
+              fontSize: '12px',
+              color: 'var(--ink)',
+              borderLeft: '1px solid var(--grey-200)',
+              paddingLeft: '8px',
+              fontFamily: 'inherit',
+              background: 'transparent'
+            }}
           />
           <div className="input-actions">
             <button className="input-btn" onClick={() => fileRef.current.click()} disabled={uploading} title="Upload document">

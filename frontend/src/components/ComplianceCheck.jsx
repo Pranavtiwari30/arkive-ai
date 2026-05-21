@@ -16,6 +16,7 @@ const PILLARS = [
 
 function ComplianceCheck() {
   const [file, setFile] = useState(null)
+  const [password, setPassword] = useState("")
   const [checking, setChecking] = useState(false)
   const [report, setReport] = useState(null)
   const [error, setError] = useState("")
@@ -48,19 +49,24 @@ function ComplianceCheck() {
 
     const formData = new FormData()
     formData.append("file", file)
+    if (password) {
+      formData.append("password", password)
+    }
 
     try {
       const res = await api.post(`/api/compliance/check`, formData)
       setReport(res.data)
     } catch (err) {
       console.error(err)
-      setError("Compliance check failed. Please try again.")
+      const detailMsg = err.response?.data?.detail || "Compliance check failed. Please try again."
+      setError(detailMsg)
     }
     setChecking(false)
   }
 
   const resetCheck = () => {
     setFile(null)
+    setPassword("")
     setReport(null)
     setError("")
   }
@@ -150,6 +156,26 @@ function ComplianceCheck() {
                 </>
               )}
             </div>
+
+            {file && (
+              <div className="compliance-password-wrapper">
+                <div className="compliance-password-field">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lock-icon">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                  <input
+                    type="password"
+                    className="compliance-password-input"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="Document password (optional)..."
+                    title="Provide if the PDF is password-protected"
+                    disabled={checking}
+                  />
+                </div>
+              </div>
+            )}
 
             {error && <p className="compliance-error">{error}</p>}
 

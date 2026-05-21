@@ -1,7 +1,11 @@
 import os
 from groq import Groq
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
+from typing import List, Optional
 import json
+import uuid
+from datetime import datetime, timezone
+import re
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
@@ -9,6 +13,23 @@ class RiskClassificationRequest(BaseModel):
     system_description: str
     intended_purpose: str
     data_used: str
+    jurisdiction_context: Optional[str] = None
+
+class ObligationItem(BaseModel):
+    obligation: str
+    article: str
+
+class RiskClassificationResult(BaseModel):
+    risk_tier: str
+    legal_basis: str
+    annex_iii_category: Optional[str] = None
+    classification_procedure_step: int
+    reasoning: str
+    obligations: List[ObligationItem] = []
+    cannot_determine_reason: Optional[str] = None
+    classification_id: Optional[str] = None
+    generated_at: Optional[str] = None
+    disclaimer: Optional[str] = None
 
 RISK_SYSTEM_PROMPT = """You are a legal risk classification engine specialising in the EU Artificial Intelligence Act (2024). Your sole function is to determine the correct risk tier of an AI system under the EU AI Act.
 
@@ -133,20 +154,20 @@ OUTPUT FORMAT — you must respond with valid JSON only. No markdown. No preambl
 
 Do not classify by analogy. Do not infer risk from how dangerous the system sounds. Follow the classification procedure exactly. Every output must cite the article or Annex III entry that makes it correct."""
 
-import uuid
-from datetime import datetime, timezone
-import re
+def classify_risk_tier(description: str, purpose: str, data: str, jurisdiction_context: str = None, retry: bool = False) -> dict:
+    """
+    Uses Llama-3 to classify an AI system into an EU AI Act Risk Tier with strict schema validation.
+    """
+    user_prompt = f"System Description: {description}\nIntended Purpose: {purpose}\nData Used: {data}"
+    if jurisdiction_context:
+        user_prompt += f"\nJurisdiction Onboarding Context: {jurisdiction_context}"
 
-def classify_risk_tier(description: str, purpose: str, data: str, retry: bool = False) -> dict:
-    """
-    Uses Llama-3 to classify an AI system into an EU AI Act Risk Tier.
-    """
     try:
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": RISK_SYSTEM_PROMPT},
-                {"role": "user", "content": f"System Description: {description}\nIntended Purpose: {purpose}\nData Used: {data}"}
+                {"role": "user", "content": user_prompt}
             ],
             temperature=0,
             response_format={"type": "json_object"}
@@ -155,17 +176,35 @@ def classify_risk_tier(description: str, purpose: str, data: str, retry: bool = 
         raw = response.choices[0].message.content.strip()
         raw_cleaned = re.sub(r"^```(?:json)?\s*", "", raw)
         raw_cleaned = re.sub(r"\s*```$", "", raw_cleaned)
-        result = json.loads(raw_cleaned)
+        
+        parsed_json = json.loads(raw_cleaned)
+        
+        # Enforce validation using Pydantic model
+        validated_model = RiskClassificationResult(**parsed_json)
+        result = validated_model.dict()
         
         result["classification_id"] = str(uuid.uuid4())
         result["generated_at"] = datetime.now(timezone.utc).isoformat()
         result["disclaimer"] = "This report is informational only and does not constitute legal advice or a conformity assessment."
         return result
         
-    except Exception as e:
+    except (json.JSONDecodeError, ValidationError, Exception) as e:
         if not retry:
-            return classify_risk_tier(description, purpose, data, retry=True)
+            return classify_risk_tier(description, purpose, data, jurisdiction_context, retry=True)
         print(f"Error in risk classification: {e}")
-        return {
-            "error": "Failed to parse classification response. Please try again."
-        }
+        
+        # Safe structural fallback adhering to RiskClassificationResult schema
+        fallback = RiskClassificationResult(
+            risk_tier="Cannot Determine",
+            legal_basis="N/A",
+            annex_iii_category=None,
+            classification_procedure_step=0,
+            reasoning="An error occurred during strict validation or structure parsing of the risk classification engine.",
+            obligations=[],
+            cannot_determine_reason=f"Failed to parse or validate structural output: {str(e)}",
+            classification_id=str(uuid.uuid4()),
+            generated_at=datetime.now(timezone.utc).isoformat(),
+            disclaimer="This report is informational only and does not constitute legal advice or a conformity assessment."
+        )
+        return fallback.dict()
+

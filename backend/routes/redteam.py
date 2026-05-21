@@ -49,5 +49,5 @@ Respond ONLY in valid JSON matching this schema:
         result = json.loads(raw_output)
         return result
     except Exception as e:
-        print(f"⚠️ Red Team LLM error: {e}")
+        print(f"Red Team LLM error: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate attacks.")

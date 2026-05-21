@@ -557,3 +557,49 @@
   margin-top: 1px;
   color: #d97706;
 }
+
+.compliance-password-wrapper {
+  max-width: 880px;
+  margin: 0 auto 20px auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.compliance-password-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--white);
+  border: 1px solid var(--grey-200);
+  border-radius: 8px;
+  padding: 8px 14px;
+  width: 100%;
+  max-width: 320px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.compliance-password-field:focus-within {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-pale);
+}
+
+.compliance-password-field .lock-icon {
+  color: var(--grey-400);
+  flex-shrink: 0;
+}
+
+.compliance-password-input {
+  border: none;
+  outline: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13.5px;
+  color: var(--ink);
+  width: 100%;
+  background: transparent;
+}
+
+.compliance-password-input::placeholder {
+  color: var(--grey-300);
+}

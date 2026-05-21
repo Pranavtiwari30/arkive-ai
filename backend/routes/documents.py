@@ -60,10 +60,10 @@ async def upload_document(
         "is_permanent": is_permanent
     })
 
-    label = "📌 permanent knowledge base" if is_permanent else "⏳ expires in 7 days"
+    label = "permanent knowledge base" if is_permanent else "expires in 7 days"
 
     return {
-        "message": f"✅ '{file.filename}' uploaded! ({label})",
+        "message": f"'{file.filename}' uploaded! ({label})",
         "doc_id": doc_id,
         "total_chunks": len(chunks),
         "is_permanent": is_permanent
@@ -172,7 +172,7 @@ async def update_knowledge_base(
     })
 
     return {
-        "message": f"✅ Knowledge base updated with '{file.filename}' (v{version})",
+        "message": f"Knowledge base updated with '{file.filename}' (v{version})",
         "doc_id": doc_id,
         "version": version
     }
