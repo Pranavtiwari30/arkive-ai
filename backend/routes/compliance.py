@@ -1,13 +1,12 @@
-from fastapi import APIRouter, UploadFile, File, Form
+from fastapi import APIRouter, UploadFile, File, Form, Depends
 from services.ingestion import ingest_document
 from services.embeddings import add_chunks_to_vector_store, retrieve_relevant_chunks
 from services.audit import log_event
 from groq import Groq
 from dotenv import load_dotenv
 from db.mongo import documents_col
-import os
-import shutil
-import json
+from middleware.auth import get_optional_user
+import os, shutil, json, re
 
 load_dotenv()
 
@@ -58,111 +57,123 @@ PILLARS = [
 ]
 
 
-def check_pillar(pillar: dict, doc_chunks: list) -> dict:
-    """Check a single compliance pillar against the document chunks."""
+COMPLIANCE_SYSTEM_PROMPT = """You are an AI compliance auditor. Analyse the policy document excerpt and determine compliance against 8 ethical AI pillars.
 
-    # Build context from document chunks only
+You must respond with valid JSON only. No markdown. No preamble. No explanation outside the JSON structure. Your entire response must parse as valid JSON matching the schema provided:
+
+{
+  "compliance_score": "integer (0–8, number of PASS pillars)",
+  "overall_status": "COMPLIANT | PARTIAL | NON_COMPLIANT",
+  "pillars": [
+    {
+      "pillar_id": "string (e.g., P01)",
+      "pillar_name": "string (e.g., Transparency)",
+      "status": "PASS | GAP",
+      "standards_referenced": ["string"],
+      "finding": "string (1–2 sentences, what was found in the document)",
+      "gap_description": "string | null (what is missing — null if PASS)",
+      "recommendation": "string | null (specific action to close gap — null if PASS)",
+      "confidence": "float (0.0–1.0)"
+    }
+  ]
+}
+
+Pillars to check:
+1. Transparency: Does this policy address how AI decisions are explained or made transparent to users?
+2. Human Oversight: Does this policy describe human review, oversight, or control mechanisms for AI systems?
+3. Privacy & Data Protection: Does this policy address how user data and personal information is protected?
+4. Fairness & Non-discrimination: Does this policy address bias, fairness, or non-discrimination in AI outputs?
+5. Accountability: Does this policy define who is responsible when the AI system causes harm or makes errors?
+6. Safety & Security: Does this policy address risk management, safety testing, or security measures for the AI system?
+7. Sustainability: Does this policy address environmental impact or sustainability of AI operations?
+8. Inclusivity: Does this policy address accessibility, inclusion, or consideration of marginalized groups?
+"""
+
+def evaluate_compliance(doc_chunks: list, retry: bool = False) -> dict:
     context = ""
     for i, chunk in enumerate(doc_chunks[:6]):
         context += f"\n[Section {i+1}]\n{chunk['text']}\n"
-
-    prompt = f"""You are an AI compliance auditor. Analyse the following policy document excerpt and determine if it addresses the compliance requirement below.
-
-Compliance Requirement: {pillar['question']}
-
-Policy Document Excerpt:
-{context}
-
-Respond ONLY with a valid JSON object in exactly this format with no extra text:
-{{
-  "status": "pass" or "fail",
-  "note": "one sentence explanation of your finding"
-}}"""
-
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.1,
-        max_tokens=150
-    )
-
-    raw = response.choices[0].message.content.strip()
-
+        
+    prompt = f"Policy Document Excerpt:\n{context}"
+    
     try:
-        # Strip markdown code fences if present
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        result = json.loads(raw.strip())
-        return {
-            "status": result.get("status", "fail"),
-            "note": result.get("note", "")
-        }
-    except Exception:
-        return {"status": "fail", "note": "Could not evaluate this pillar."}
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": COMPLIANCE_SYSTEM_PROMPT},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0,
+            response_format={"type": "json_object"},
+            max_tokens=4000
+        )
+        raw = response.choices[0].message.content.strip()
+        raw_cleaned = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw_cleaned = re.sub(r"\s*```$", "", raw_cleaned)
+        
+        result = json.loads(raw_cleaned)
+        if "pillars" not in result:
+            raise ValueError("Missing pillars in response")
+        return result
+    except Exception as e:
+        if not retry:
+            return evaluate_compliance(doc_chunks, retry=True)
+        raise e
 
+import uuid
+from datetime import datetime, timezone
 
 @router.post("/check")
 async def compliance_check(
     file: UploadFile = File(...),
-    user_id: str = Form(...)
+    password: str = Form(None),
+    user: dict = Depends(get_optional_user)
 ):
-    # Save uploaded file temporarily
+    from fastapi import HTTPException
+    user_id = user["user_id"]
     temp_path = f"uploads/temp_{file.filename}"
     with open(temp_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
     try:
-        # Ingest document — NOT permanent, temporary check only
-        chunk_data, doc_id = ingest_document(
-            temp_path,
-            uploaded_by=user_id,
-            is_permanent=False
-        )
+        try:
+            chunk_data, doc_id = ingest_document(
+                temp_path,
+                uploaded_by=user_id,
+                is_permanent=False,
+                password=password
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=403, detail=str(e))
 
-        # Add to MongoDB for retrieval
         add_chunks_to_vector_store(chunk_data, doc_id)
-
-        # Retrieve all chunks from this document for analysis
         doc_chunks = [c for c in chunk_data]
 
-        # Check each pillar
-        results = {}
-        gaps = []
+        try:
+            report_data = evaluate_compliance(doc_chunks)
+        except Exception:
+            raise HTTPException(status_code=500, detail="Failed to generate compliance report.")
 
-        for pillar in PILLARS:
-            result = check_pillar(pillar, doc_chunks)
-            results[pillar["key"]] = result
-            if result["status"] == "fail":
-                gaps.append(
-                    f"Add a section on {pillar['label'].lower()} — {result['note']}"
-                )
+        report_data["report_id"] = str(uuid.uuid4())
+        report_data["generated_at"] = datetime.now(timezone.utc).isoformat()
+        report_data["document_name"] = file.filename
+        report_data["document_id"] = doc_id
+        report_data["disclaimer"] = "This report is informational only and does not constitute legal advice or a conformity assessment."
 
-        pass_count = sum(1 for r in results.values() if r["status"] == "pass")
-
-        # Audit log
         log_event("compliance_check", user_id, {
             "filename": file.filename,
-            "score": f"{pass_count}/8",
-            "gaps": len(gaps)
+            "score": report_data.get("compliance_score", 0),
+            "report_id": report_data["report_id"]
         })
 
-        # Clean up temp file
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
-        # Clean up temp doc from MongoDB
-        documents_col.delete_one({"_id": __import__("bson").ObjectId(doc_id)})
-
-        return {
-            "filename": file.filename,
-            "score": f"{pass_count}/8",
-            "results": results,
-            "gaps": gaps
-        }
+        return report_data
 
     except Exception as e:
+        raise e
+    finally:
+        # Always clean up temp file — critical for Render 512MB disk limit
         if os.path.exists(temp_path):
             os.remove(temp_path)
-        raise e

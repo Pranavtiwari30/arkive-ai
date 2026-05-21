@@ -1,6 +1,11 @@
 from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
+import sys
+
+# Fix Windows console encoding for emoji output
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
 
 load_dotenv()
 

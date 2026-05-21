@@ -1,10 +1,7 @@
 import { useState, useRef, useEffect } from "react"
-import axios from "axios"
+import api from "../api"
 import ReactMarkdown from "react-markdown"
 import "./Chat.css"
-
-const API = "https://arkive-ai-backend.onrender.com"
-
 function Chat({ userId }) {
   const [messages, setMessages] = useState([null])
   const [input, setInput] = useState("")
@@ -13,6 +10,7 @@ function Chat({ userId }) {
   const [sessionId, setSessionId] = useState(null)
   const [sessions, setSessions] = useState([])
   const [showSessions, setShowSessions] = useState(false)
+  const [kbLastUpdated, setKbLastUpdated] = useState(null)
   const bottomRef = useRef(null)
   const fileRef = useRef(null)
 
@@ -20,27 +18,35 @@ function Chat({ userId }) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  useEffect(() => {
-    fetchSessions()
-  }, [])
-
   const fetchSessions = async () => {
     try {
-      const res = await axios.get(`${API}/api/chat/sessions/${userId}`)
+      const res = await api.get(`/api/chat/sessions/${userId}`)
       setSessions(res.data.sessions)
     } catch (err) {
       console.error("Failed to fetch sessions", err)
     }
   }
 
+  useEffect(() => {
+    fetchSessions()
+    // Fetch KB status for welcome card
+    api.get(`/api/documents/kb-status`)
+      .then(res => setKbLastUpdated(res.data.last_updated))
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+
+
   const loadSession = async (sid) => {
     try {
-      const res = await axios.get(`${API}/api/chat/history/${sid}`)
+    const res = await api.get(`/api/chat/history/${sid}`)
       const loaded = res.data.messages.map(m => ({
         role: m.role,
         content: m.content,
         sources: m.sources || [],
         confidence: m.confidence || 0,
+        confidence_explanation: m.confidence_explanation || "",
         flagged: m.flagged || false
       }))
       setMessages(loaded)
@@ -59,14 +65,13 @@ function Chat({ userId }) {
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return
-    const userMessage = { role: "user", content: input, sources: [], confidence: 0 }
+    const userMessage = { role: "user", content: input, sources: [], confidence: 0, confidence_explanation: "" }
     setMessages(prev => [...prev.filter(m => m !== null), userMessage])
     setInput("")
     setLoading(true)
     try {
-      const res = await axios.post(`${API}/api/chat/`, {
+      const res = await api.post(`/api/chat/`, {
         query: input,
-        user_id: userId,
         session_id: sessionId
       })
       if (!sessionId) {
@@ -78,14 +83,17 @@ function Chat({ userId }) {
         content: res.data.answer,
         sources: res.data.sources || [],
         flagged: res.data.flagged,
-        confidence: res.data.confidence
+        confidence: res.data.confidence,
+        confidence_explanation: res.data.confidence_explanation || ""
       }])
     } catch (err) {
+      console.error(err)
       setMessages(prev => [...prev, {
         role: "assistant",
         content: "Error connecting to backend. Please try again.",
         sources: [],
-        confidence: 0
+        confidence: 0,
+        confidence_explanation: ""
       }])
     }
     setLoading(false)
@@ -97,9 +105,8 @@ function Chat({ userId }) {
     setUploading(true)
     const formData = new FormData()
     formData.append("file", file)
-    formData.append("user_id", userId)
     try {
-      const res = await axios.post(`${API}/api/documents/upload`, formData)
+      const res = await api.post(`/api/documents/upload`, formData)
       setMessages(prev => [...prev.filter(m => m !== null), {
         role: "assistant",
         content: `**${file.name}** indexed successfully — ${res.data.total_chunks} chunks stored.`,
@@ -107,6 +114,7 @@ function Chat({ userId }) {
         confidence: 0
       }])
     } catch (err) {
+      console.error(err)
       setMessages(prev => [...prev.filter(m => m !== null), {
         role: "assistant",
         content: "Upload failed. Please try again.",
@@ -190,6 +198,14 @@ function Chat({ userId }) {
               <div className="kb-tag"><div className="kb-dot"></div>OECD AI Principles (2019)</div>
               <div className="kb-tag"><div className="kb-dot"></div>EU AI Act (2024)</div>
             </div>
+            {kbLastUpdated && (
+              <div className="kb-updated-info">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                Knowledge base last indexed: {new Date(kbLastUpdated).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </div>
+            )}
             <div className="sample-queries">
               <div className="sample-label">Suggested queries</div>
               <div className="sample-grid">
@@ -210,30 +226,31 @@ function Chat({ userId }) {
             </div>
             <div className="msg-body">
               {msg.role === "assistant" && msg.confidence > 0 && (
-                <div className="confidence-row">
-                  <span className="confidence-label">Confidence</span>
-                  <div className="confidence-track">
-                    <div className="confidence-fill" style={{
-                      width: `${msg.confidence}%`,
-                      background: msg.confidence > 70 ? "var(--green)" : msg.confidence > 40 ? "#d97706" : "var(--red)"
-                    }}/>
+                <div className="confidence-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px', marginBottom: '8px', padding: '8px', background: 'var(--grey-50)', borderRadius: '8px', border: '1px solid var(--grey-200)' }}>
+                  {msg.sources && msg.sources.length > 0 && (
+                    <div style={{ fontSize: '11px', color: 'var(--grey-600)' }}>
+                      <strong>Grounded in:</strong> {msg.sources.map((s, j) => (
+                        <span key={j}>{s.source} · p.{s.page}{j < msg.sources.length - 1 ? ' | ' : ''}</span>
+                      ))}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="confidence-label" style={{ fontWeight: 600, color: 'var(--grey-700)' }}>Retrieval match:</span>
+                    <span className="confidence-pct" style={{
+                      color: msg.confidence > 70 ? "var(--green)" : msg.confidence > 40 ? "#d97706" : "var(--red)",
+                      fontWeight: 500
+                    }}>{(msg.confidence / 100).toFixed(2)}</span>
+                    <div className="confidence-info" title="How closely the retrieved regulatory text matched your query. A high score means the answer is grounded in directly relevant source material. It does not indicate legal certainty.">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--grey-400)', cursor: 'help' }}>
+                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                      </svg>
+                    </div>
                   </div>
-                  <span className="confidence-pct" style={{
-                    color: msg.confidence > 70 ? "var(--green)" : msg.confidence > 40 ? "#d97706" : "var(--red)"
-                  }}>{msg.confidence}%</span>
                 </div>
               )}
               <div className="msg-bubble">
                 <ReactMarkdown>{msg.content}</ReactMarkdown>
               </div>
-              {msg.sources && msg.sources.length > 0 && (
-                <div className="sources-row">
-                  <span className="sources-label">Sources</span>
-                  {msg.sources.map((s, j) => (
-                    <span key={j} className="source-chip">{s.source} · p.{s.page}</span>
-                  ))}
-                </div>
-              )}
               {msg.flagged && (
                 <div className="flagged-badge">Content flagged by moderation</div>
               )}

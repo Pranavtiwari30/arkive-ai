@@ -22,6 +22,9 @@ frontend/dist/
 aider_env/
 venv/
 
+# Aider tool
+.aider*
+
 # OS files
 .DS_Store
 Thumbs.db

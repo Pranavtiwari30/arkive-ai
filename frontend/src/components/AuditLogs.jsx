@@ -1,24 +1,23 @@
 import { useState, useEffect } from "react"
-import axios from "axios"
+import api from "../api"
 import "./AuditLogs.css"
-
-const API = "https://arkive-ai-backend.onrender.com"
 
 function AuditLogs() {
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { fetchLogs() }, [])
 
   const fetchLogs = async () => {
     try {
-      const res = await axios.get(`${API}/api/audit/`)
+      const res = await api.get(`/api/audit/`)
       setLogs(res.data.logs)
     } catch (err) {
       console.error("Failed to fetch logs", err)
     }
     setLoading(false)
   }
+
+  useEffect(() => { fetchLogs() }, [])
 
   const getEventVariant = (type) => {
     switch(type) {

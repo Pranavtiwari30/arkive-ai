@@ -1,8 +1,9 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import Optional
 from services.rag import generate_answer
 from db.mongo import sessions_col, messages_col
+from middleware.auth import get_optional_user
 from datetime import datetime
 from bson import ObjectId
 
@@ -10,16 +11,20 @@ router = APIRouter()
 
 class ChatRequest(BaseModel):
     query: str
-    user_id: str = "anonymous"
     session_id: Optional[str] = None
 
 @router.post("/")
-async def chat(request: ChatRequest):
+async def chat(
+    request: ChatRequest,
+    user: dict = Depends(get_optional_user)
+):
+    user_id = user["user_id"]
+
     # Create session if none exists
     session_id = request.session_id
     if not session_id:
         session = {
-            "user_id": request.user_id,
+            "user_id": user_id,
             "created_at": datetime.utcnow(),
             "last_active": datetime.utcnow()
         }
@@ -34,7 +39,7 @@ async def chat(request: ChatRequest):
         except:
             # Invalid session_id — create new one
             session = {
-                "user_id": request.user_id,
+                "user_id": user_id,
                 "created_at": datetime.utcnow(),
                 "last_active": datetime.utcnow()
             }
@@ -50,7 +55,7 @@ async def chat(request: ChatRequest):
     })
 
     # Generate answer
-    result = generate_answer(query=request.query, user_id=request.user_id)
+    result = generate_answer(query=request.query, user_id=user_id)
 
     # Save assistant message
     messages_col.insert_one({
@@ -59,6 +64,7 @@ async def chat(request: ChatRequest):
         "content": result["answer"],
         "sources": result.get("sources", []),
         "confidence": result.get("confidence", 0),
+        "confidence_explanation": result.get("confidence_explanation", ""),
         "flagged": result.get("flagged", False),
         "timestamp": datetime.utcnow()
     })

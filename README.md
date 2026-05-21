@@ -31,11 +31,28 @@ The EU AI Act enforcement deadline is August 2026. Companies need to be complian
 - Every answer shows source document, page number, and confidence score
 - Session history persisted across logins
 
+**AI Red Team Simulator**
+- Select any indexed policy document
+- Choose a specific compliance pillar (e.g., Privacy, Fairness)
+- Generates 5 highly sophisticated adversarial prompt injections
+- Tests if your AI policy can be bypassed by "jailbreak" or "logic-trap" techniques
+- Explains the expected vulnerability for each attack vector
+
 **Governance Infrastructure**
-- Content moderation via Meta Llama Guard 3
+- Content moderation via LLM-based safety classifier (Llama 3.1 8B)
 - Full audit log of every interaction with timestamps
 - Permanent knowledge base — 3 core documents indexed forever
 - User document uploads with automatic 7-day expiry
+- Secure Authentication (JWT, bcrypt password hashing)
+
+**Advanced Document Ingestion**
+- Layout-aware PDF extraction via PyMuPDF
+- Optical Character Recognition (OCR) fallback for scanned documents using Tesseract
+- Support for uploading and processing password-protected PDFs
+
+**EU AI Act Specialised Tools**
+- **Risk Tier Classification:** Automatically categorizes AI systems into Unacceptable, High, Limited, or Minimal risk under the EU AI Act.
+- **Role Classification:** Determines an organization's legal obligations (Provider, Deployer, Importer, Distributor) based on their involvement with an AI system.
 
 ---
 
@@ -46,7 +63,7 @@ The EU AI Act enforcement deadline is August 2026. Companies need to be complian
 | Frontend | React + Vite |
 | Backend | FastAPI (Python) |
 | LLM | Groq — Llama 3.3 70B |
-| Moderation | Llama Guard 3 via Groq |
+| Moderation | Llama 3.1 8B Instant via Groq (LLM-based classifier) |
 | Embeddings | Sentence Transformers all-MiniLM-L6-v2 |
 | Vector Search | MongoDB Atlas Vector Search |
 | Database | MongoDB Atlas |
@@ -59,16 +76,16 @@ The EU AI Act enforcement deadline is August 2026. Companies need to be complian
 ## Architecture
 
 ```
-User Query / Policy Document
+User Query / Policy Document / Red Team Request
          ↓
-Llama Guard 3 — Content Moderation
+Llama 3.1 8B — Content Moderation (LLM Safety Classifier)
          ↓
 MongoDB Atlas Vector Search — Semantic Retrieval
          ↓
 Context + Permanent Knowledge Base
 (UNESCO AI Ethics · OECD Principles · EU AI Act)
          ↓
-Groq LLM — Grounded Answer / Compliance Analysis
+Groq LLM (Llama 3.3 70B) — Grounded Answer / Compliance Analysis / Attack Synthesis
          ↓
 Response + Sources + Confidence Score + Audit Log
 ```
@@ -111,6 +128,8 @@ The compliance check evaluates 8 pillars with exact article citations:
 - Node.js 18+
 - MongoDB Atlas account (free tier works)
 - Groq API key (free)
+- Tesseract OCR (for scanned PDF processing)
+- Poppler Utils (for PDF to image conversion)
 
 ### 1. Clone
 
@@ -177,31 +196,41 @@ arkive-ai/
 │   ├── db/
 │   │   └── mongo.py              # MongoDB connection + TTL indexes
 │   ├── routes/
+│   │   ├── auth.py               # JWT Authentication, login & register
 │   │   ├── chat.py               # Chat + session endpoints
-│   │   ├── documents.py          # Document upload endpoint
-│   │   ├── audit.py              # Audit log endpoint
-│   │   └── compliance.py         # Compliance check endpoint
+│   │   ├── documents.py          # Document upload/listing endpoints
+│   │   ├── audit.py              # Audit log retrieval
+│   │   ├── compliance.py         # Policy analysis engine
+│   │   ├── redteam.py            # Adversarial attack generator
+│   │   ├── risk_tier.py          # EU AI Act risk classification
+│   │   └── role.py               # EU AI Act organizational role classification
 │   ├── services/
-│   │   ├── rag.py                # RAG pipeline
-│   │   ├── embeddings.py         # MongoDB Atlas Vector Search
-│   │   ├── ingestion.py          # PDF chunking + metadata
-│   │   ├── moderation.py         # Llama Guard moderation
-│   │   ├── audit.py              # Audit logging
-│   │   └── preload.py            # Startup knowledge base indexing
+│   │   ├── auth.py               # Password hashing & JWT generation
+│   │   ├── rag.py                # LangChain RAG pipeline
+│   │   ├── embeddings.py         # Vector Search service
+│   │   ├── ingestion.py          # PyMuPDF + OCR PDF chunking
+│   │   ├── moderation.py         # Llama Guard 3 implementation
+│   │   ├── audit.py              # Interaction logging service
+│   │   ├── risk_classifier.py    # LLM-based risk tiering
+│   │   ├── role_classifier.py    # LLM-based role identification
+│   │   └── preload.py            # Startup knowledge base pre-loader
 │   ├── uploads/
-│   │   ├── unesco-ai.pdf         # Permanent knowledge base
-│   │   ├── oecd.pdf              # Permanent knowledge base
-│   │   └── eu-ai-act.pdf         # Permanent knowledge base
-│   └── main.py                   # FastAPI app + lifespan
+│   │   └── *.pdf                 # Permanent base documents
+│   └── main.py                   # FastAPI app + CORS + Router mounting
 └── frontend/
     └── src/
-        └── components/
-            ├── Login.jsx          # Split screen login
-            ├── Sidebar.jsx        # Navigation with SVG icons
-            ├── Chat.jsx           # Compliance chat interface
-            ├── ComplianceCheck.jsx # Policy upload + report
-            ├── Documents.jsx      # Knowledge base viewer
-            └── AuditLogs.jsx      # Audit log viewer
+        ├── components/
+        │   ├── Chat.jsx           # RAG-powered chat interface
+        │   ├── ComplianceCheck.jsx # Policy analyzer & report viewer
+        │   ├── RedTeam.jsx        # Adversarial simulator
+        │   ├── RiskTier.jsx       # Risk tier classification form
+        │   ├── RoleClassifier.jsx # Role classification form
+        │   ├── Documents.jsx      # Knowledge base & upload manager
+        │   ├── AuditLogs.jsx      # Historical interaction tracker
+        │   ├── Sidebar.jsx        # Navigation & Branding
+        │   └── AuthPage.jsx       # Secure Login & Registration
+        ├── App.jsx                # Tab routing & state management
+        └── main.jsx               # React entry point
 ```
 
 ---
@@ -224,7 +253,7 @@ Arkive AI is itself built around the principles it enforces:
 
 - **Transparency** — Every answer cites its source document and page number
 - **Accountability** — All interactions are audit logged with user ID and timestamp
-- **Moderation** — Llama Guard 3 filters harmful content before it reaches the LLM
+- **Moderation** — LLM-based safety classifier filters harmful content before it reaches the LLM
 - **Grounding** — All responses based on verified international standards documents
 - **Explainability** — Confidence scores show how well-grounded each answer is
 - **Traceability** — Compliance reports include exact article references

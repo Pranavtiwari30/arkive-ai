@@ -61,6 +61,7 @@ Rules:
 - At the end of your answer, always list which sources you used
 - Be concise and clear
 - Do NOT mention which sources don't contain information. Only mention sources that ARE used.
+- Always end your response with: "⚖️ Disclaimer: This information is for educational purposes only and does not constitute legal advice or a formal conformity assessment."
 
 User Question: {query}
 
@@ -70,7 +71,7 @@ Answer:"""
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.2,
+        temperature=0,
         max_tokens=500
     )
     answer = response.choices[0].message.content
@@ -83,6 +84,13 @@ Answer:"""
         "confidence": confidence
     })
 
+    if confidence > 70:
+        confidence_explanation = "Strong semantic match — answer is well-grounded in source documents."
+    elif confidence >= 40:
+        confidence_explanation = "Moderate match — answer may require verification."
+    else:
+        confidence_explanation = "Weak match — answer may not be fully supported."
+
     return {
         "answer": answer,
         "sources": [
@@ -94,5 +102,6 @@ Answer:"""
             for chunk in relevant_chunks
         ],
         "flagged": False,
-        "confidence": confidence
+        "confidence": confidence,
+        "confidence_explanation": confidence_explanation
     }

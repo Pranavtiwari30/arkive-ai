@@ -158,8 +158,108 @@
   color: var(--green);
 }
 
-.doc-badge.temporary {
-  background: #fff3e0;
-  border: 1px solid #ffcc80;
-  color: #e65100;
+.doc-badge.ttl-green {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #059669;
+}
+
+.doc-badge.ttl-amber {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #d97706;
+}
+
+.doc-badge.ttl-red {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #dc2626;
+}
+
+/* KB Table */
+.kb-metadata-container {
+  background: var(--white);
+  border: 1px solid var(--grey-200);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 24px;
+  max-width: 880px;
+}
+.kb-metadata-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.kb-metadata-title {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.kb-metadata-label {
+  font-size: 11.5px;
+  color: var(--grey-500);
+}
+.kb-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.kb-table th, .kb-table td {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  border-bottom: 1px solid var(--grey-100);
+}
+.kb-table th {
+  font-weight: 600;
+  color: var(--grey-700);
+  background: var(--grey-50);
+}
+.kb-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Expiry Warning Banner */
+.expiry-warning-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 18px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  max-width: 880px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #92400e;
+}
+
+.expiry-warning-banner svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #d97706;
+}
+
+/* Doc card warning state */
+.doc-card-warning {
+  border-color: #fde68a;
+  background: #fffdf5;
+}
+
+/* Doc badges container */
+.doc-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+/* Expiring badge */
+.doc-badge.expiring {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #dc2626;
+  font-size: 10px;
 }

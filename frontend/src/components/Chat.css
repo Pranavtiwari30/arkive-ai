@@ -195,6 +195,17 @@
   flex-shrink: 0;
 }
 
+.kb-updated-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--grey-500);
+  font-family: 'DM Mono', monospace;
+  margin-bottom: 14px;
+  padding: 0 2px;
+}
+
 .sample-queries {
   border-top: 1px solid var(--grey-100);
   padding-top: 16px;
@@ -297,6 +308,18 @@
   font-size: 11px;
   font-weight: 600;
   font-family: 'DM Mono', monospace;
+}
+
+.confidence-info {
+  display: flex;
+  align-items: center;
+  color: var(--grey-300);
+  cursor: help;
+  transition: color 0.15s;
+}
+
+.confidence-info:hover {
+  color: var(--grey-500);
 }
 
 .msg-bubble {
