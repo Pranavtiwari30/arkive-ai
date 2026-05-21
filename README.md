@@ -54,6 +54,11 @@ The EU AI Act enforcement deadline is August 2026. Companies need to be complian
 - **Risk Tier Classification:** Automatically categorizes AI systems into Unacceptable, High, Limited, or Minimal risk under the EU AI Act.
 - **Role Classification:** Determines an organization's legal obligations (Provider, Deployer, Importer, Distributor) based on their involvement with an AI system.
 
+**Comprehensive Testing Suite**
+- 78-case EU AI Act compliance test suite to continuously validate LLM classifications.
+- Built-in High-Fidelity Local Mock Engine for graceful fallbacks when live API rate limits are hit.
+- Canary tests for real-time monitoring of live deployment endpoints.
+
 ---
 
 ## Tech Stack
@@ -165,7 +170,24 @@ npm install
 npm run dev
 ```
 
-### 4. MongoDB Atlas Vector Search Index
+### 4. Testing Suite
+
+To run the comprehensive 78-case EU AI Act test suite:
+
+```bash
+cd backend
+python tests/run_tests.py
+```
+To force the local mock engine (bypassing live APIs to avoid rate limits):
+```bash
+python tests/run_tests.py --mock
+```
+To run canary tests against the live deployment:
+```bash
+python tests/test_live_canary.py
+```
+
+### 5. MongoDB Atlas Vector Search Index
 
 Create a vector search index on the `embeddings` collection:
 
@@ -182,9 +204,9 @@ Create a vector search index on the `embeddings` collection:
 }
 ```
 
-### 5. Network Access
+### 6. Network Access
 
-In MongoDB Atlas → Network Access → Add `0.0.0.0/0` to allow connections from your deployment platform.
+In MongoDB Atlas -> Network Access -> Add `0.0.0.0/0` to allow connections from your deployment platform.
 
 ---
 
@@ -214,6 +236,9 @@ arkive-ai/
 │   │   ├── risk_classifier.py    # LLM-based risk tiering
 │   │   ├── role_classifier.py    # LLM-based role identification
 │   │   └── preload.py            # Startup knowledge base pre-loader
+│   ├── tests/
+│   │   ├── run_tests.py          # 78-case validation suite
+│   │   └── test_live_canary.py   # Live endpoint health checks
 │   ├── uploads/
 │   │   └── *.pdf                 # Permanent base documents
 │   └── main.py                   # FastAPI app + CORS + Router mounting
