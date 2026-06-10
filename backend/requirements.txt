@@ -15,11 +15,7 @@ dnspython==2.4.2
 groq==1.0.0
 
 # ── Embeddings + ML ───────────────────────────────────────────────────────────
-sentence-transformers==5.2.3
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.10.0+cpu
-transformers==5.2.0
-huggingface_hub==1.4.1
+fastembed==0.8.0
 
 # ── LangChain (text splitting only — RAG now handled by custom retriever) ─────
 langchain-text-splitters==1.1.1

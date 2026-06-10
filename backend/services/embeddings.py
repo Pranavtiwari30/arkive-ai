@@ -1,20 +1,20 @@
 """
 Vector embeddings service for Arkive AI.
 
-Uses all-MiniLM-L6-v2 (384-dimensional) for semantic search.
+Uses all-MiniLM-L6-v2 (384-dimensional) via fastembed for memory-efficient semantic search.
 Stores enhanced chunk metadata (section_title, article_number, org_id)
 for v2 RAG citation precision.
 """
 
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 from db.mongo import db
 from datetime import datetime, timezone
 from services.logger import get_logger
 
 log = get_logger(__name__)
 
-log.info("embedding_model_loading", extra={"model": "all-MiniLM-L6-v2"})
-model = SentenceTransformer("all-MiniLM-L6-v2")
+log.info("embedding_model_loading", extra={"model": "fastembed/all-MiniLM-L6-v2"})
+model = TextEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
 log.info("embedding_model_ready")
 
 embeddings_col = db["embeddings"]
@@ -22,7 +22,7 @@ embeddings_col = db["embeddings"]
 
 def _get_query_embedding(query: str) -> list[float]:
     """Generate embedding for a query string. Used by RAG and cache."""
-    return model.encode(query).tolist()
+    return list(model.embed([query]))[0].tolist()
 
 
 def add_chunks_to_vector_store(chunks: list[dict], doc_id: str) -> None:
@@ -37,7 +37,7 @@ def add_chunks_to_vector_store(chunks: list[dict], doc_id: str) -> None:
     log.info("embedding_start", extra={"doc_id": doc_id, "num_chunks": len(chunks)})
 
     for chunk in chunks:
-        embedding = model.encode(chunk["text"]).tolist()
+        embedding = list(model.embed([chunk["text"]]))[0].tolist()
         embeddings_col.update_one(
             {"doc_id": doc_id, "chunk_index": chunk["chunk_index"]},
             {"$set": {
