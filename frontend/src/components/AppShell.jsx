@@ -99,7 +99,10 @@ export default function AppShell() {
             <span className="text-[11px] text-muted-foreground truncate leading-tight">test12345@gmail.com</span>
           </div>
           <button
-            onClick={() => navigate('/auth')}
+            onClick={() => {
+              localStorage.removeItem('isAuthenticated');
+              navigate('/auth');
+            }}
             className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-[oklch(1_0_0/0.06)] transition-all shrink-0"
             title="Sign out"
           >

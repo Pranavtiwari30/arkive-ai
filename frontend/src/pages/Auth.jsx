@@ -8,6 +8,7 @@ export default function Auth() {
 
   const handleAuth = (e) => {
     e.preventDefault();
+    localStorage.setItem('isAuthenticated', 'true');
     navigate('/');
   };
 
@@ -35,9 +36,9 @@ export default function Auth() {
           </h4>
           <h1 className="font-serif text-[32px] leading-tight tracking-tight">
             {isLogin ? (
-              <>Sign in to <span className="text-primary italic">Arkive</span></>
+              <>Sign in to <span className="text-primary">Arkive</span></>
             ) : (
-              <>Create your <span className="text-primary italic">account</span></>
+              <>Create your <span className="text-primary">account</span></>
             )}
           </h1>
         </div>
