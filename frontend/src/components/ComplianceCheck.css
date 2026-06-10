@@ -106,6 +106,39 @@
   color: var(--grey-500);
 }
 
+.upload-format-chips {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.upload-format-chip {
+  padding: 3px 9px;
+  background: var(--grey-100);
+  border: 1px solid var(--grey-200);
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--grey-600);
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.4px;
+  transition: all 0.15s;
+}
+
+.upload-zone:hover .upload-format-chip,
+.upload-zone.drag-over .upload-format-chip {
+  background: var(--gold-light);
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+/* Per-type icon tints */
+.file-ext-pdf  { background: var(--blue-light); color: var(--blue); }
+.file-ext-docx { background: #ede7f6; color: #5c35b3; }
+.file-ext-txt  { background: #e8f5e9; color: #388e3c; }
+
 .file-selected {
   display: flex;
   align-items: center;

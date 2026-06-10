@@ -1,19 +1,18 @@
-from fastapi import APIRouter, UploadFile, File, Form, Depends
-from services.ingestion import ingest_document
+from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
+from services.ingestion import ingest_document, SUPPORTED_EXTENSIONS
 from services.embeddings import add_chunks_to_vector_store, retrieve_relevant_chunks
 from services.audit import log_event
-from groq import Groq
-from dotenv import load_dotenv
+from services.model_router import routed_chat
+from services.groq_client import GroqServiceError
+from services.logger import get_logger
 from db.mongo import documents_col
 from middleware.auth import get_optional_user
 from pydantic import BaseModel, ValidationError
 from typing import List, Optional
 import os, shutil, json, re
 
-load_dotenv()
-
+log = get_logger(__name__)
 router = APIRouter()
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 PILLARS = [
     {
@@ -115,15 +114,16 @@ def evaluate_compliance(doc_chunks: list, jurisdiction_context: str = None, retr
         prompt += f"\nJurisdiction Onboarding Context: {jurisdiction_context}"
     
     try:
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+        response = routed_chat(
+            query=prompt,
+            task_type="pillar_analysis",
             messages=[
                 {"role": "system", "content": COMPLIANCE_SYSTEM_PROMPT},
                 {"role": "user", "content": prompt}
             ],
             temperature=0,
+            max_tokens=4000,
             response_format={"type": "json_object"},
-            max_tokens=4000
         )
         raw = response.choices[0].message.content.strip()
         raw_cleaned = re.sub(r"^```(?:json)?\s*", "", raw)
@@ -135,10 +135,10 @@ def evaluate_compliance(doc_chunks: list, jurisdiction_context: str = None, retr
         validated_model = ComplianceCheckResult(**parsed_json)
         return validated_model.dict()
         
-    except (json.JSONDecodeError, ValidationError, Exception) as e:
+    except (json.JSONDecodeError, ValidationError, GroqServiceError, Exception) as e:
         if not retry:
             return evaluate_compliance(doc_chunks, jurisdiction_context, retry=True)
-        print(f"Error in compliance check: {e}")
+        log.error("compliance_check_error", extra={"error": str(e)})
         
         # Safe structural fallback adhering to ComplianceCheckResult schema
         fallback = ComplianceCheckResult(
@@ -169,8 +169,18 @@ async def compliance_check(
     password: str = Form(None),
     user: dict = Depends(get_optional_user)
 ):
-    from fastapi import HTTPException
+
+    # Validate file extension
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in SUPPORTED_EXTENSIONS:
+        supported = ", ".join(sorted(SUPPORTED_EXTENSIONS))
+        raise HTTPException(
+            status_code=415,
+            detail=f"Unsupported file type '{ext}'. Accepted formats: {supported}."
+        )
+
     user_id = user["user_id"]
+    # Preserve original extension so ingestion routes correctly
     temp_path = f"uploads/temp_{file.filename}"
     with open(temp_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
@@ -198,7 +208,6 @@ async def compliance_check(
         report_data["generated_at"] = datetime.now(timezone.utc).isoformat()
         report_data["document_name"] = file.filename
         report_data["document_id"] = doc_id
-        report_data["disclaimer"] = "This report is informational only and does not constitute legal advice or a conformity assessment."
 
         log_event("compliance_check", user_id, {
             "filename": file.filename,

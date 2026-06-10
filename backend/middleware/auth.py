@@ -12,12 +12,13 @@ async def get_current_user(
 ) -> dict:
     """
     FastAPI dependency that extracts and validates the JWT from the Authorization header.
-    Returns the user profile dict or raises 401.
+    Returns the user profile dict (including role and org_id) or raises 401.
 
     Usage in routes:
         @router.post("/endpoint")
         async def endpoint(user: dict = Depends(get_current_user)):
             user_id = user["user_id"]
+            org_id  = user["org_id"]
     """
     if credentials is None:
         raise HTTPException(
@@ -57,7 +58,11 @@ async def get_current_user(
         "user_id": str(user["_id"]),
         "email": user["email"],
         "display_name": user["display_name"],
-        "organisation": user.get("organisation")
+        "organisation": user.get("organisation"),
+        # RBAC + org-scoping fields
+        "role": user.get("role", "compliance_officer"),  # default for legacy users
+        "org_id": user.get("org_id"),
+        "disclaimer_acknowledged_at": user.get("disclaimer_acknowledged_at"),
     }
 
 
@@ -66,15 +71,18 @@ async def get_optional_user(
 ) -> dict:
     """
     Optional auth dependency — returns user dict if valid token present,
-    or a fallback anonymous user if no token. Useful during migration period
-    where some endpoints need to work both authenticated and unauthenticated.
+    or a fallback anonymous user if no token. Used during migration where
+    some endpoints need to work both authenticated and unauthenticated.
     """
     if credentials is None:
         return {
             "user_id": "anonymous",
             "email": None,
             "display_name": "Anonymous",
-            "organisation": None
+            "organisation": None,
+            "role": "reviewer",
+            "org_id": None,
+            "disclaimer_acknowledged_at": None,
         }
 
     try:
@@ -84,5 +92,8 @@ async def get_optional_user(
             "user_id": "anonymous",
             "email": None,
             "display_name": "Anonymous",
-            "organisation": None
+            "organisation": None,
+            "role": "reviewer",
+            "org_id": None,
+            "disclaimer_acknowledged_at": None,
         }

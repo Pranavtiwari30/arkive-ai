@@ -1,13 +1,15 @@
-import os
-from groq import Groq
-from pydantic import BaseModel, ValidationError
-from typing import List, Optional
 import json
+import re
 import uuid
 from datetime import datetime, timezone
-import re
+from typing import List, Optional
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+from pydantic import BaseModel, ValidationError
+from services.groq_client import GroqServiceError
+from services.model_router import MODEL_70B, routed_chat
+from services.logger import get_logger
+
+log = get_logger(__name__)
 
 class RiskClassificationRequest(BaseModel):
     system_description: str
@@ -163,14 +165,16 @@ def classify_risk_tier(description: str, purpose: str, data: str, jurisdiction_c
         user_prompt += f"\nJurisdiction Onboarding Context: {jurisdiction_context}"
 
     try:
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+        response = routed_chat(
+            query=user_prompt,
+            task_type="classification",
             messages=[
                 {"role": "system", "content": RISK_SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt}
+                {"role": "user", "content": user_prompt},
             ],
             temperature=0,
-            response_format={"type": "json_object"}
+            max_tokens=1500,
+            response_format={"type": "json_object"},
         )
         
         raw = response.choices[0].message.content.strip()
@@ -185,13 +189,12 @@ def classify_risk_tier(description: str, purpose: str, data: str, jurisdiction_c
         
         result["classification_id"] = str(uuid.uuid4())
         result["generated_at"] = datetime.now(timezone.utc).isoformat()
-        result["disclaimer"] = "This report is informational only and does not constitute legal advice or a conformity assessment."
         return result
         
-    except (json.JSONDecodeError, ValidationError, Exception) as e:
+    except (json.JSONDecodeError, ValidationError, GroqServiceError, Exception) as e:
         if not retry:
             return classify_risk_tier(description, purpose, data, jurisdiction_context, retry=True)
-        print(f"Error in risk classification: {e}")
+        log.error("risk_classification_error", extra={"error": str(e)})
         
         # Safe structural fallback adhering to RiskClassificationResult schema
         fallback = RiskClassificationResult(
@@ -203,8 +206,7 @@ def classify_risk_tier(description: str, purpose: str, data: str, jurisdiction_c
             obligations=[],
             cannot_determine_reason=f"Failed to parse or validate structural output: {str(e)}",
             classification_id=str(uuid.uuid4()),
-            generated_at=datetime.now(timezone.utc).isoformat(),
-            disclaimer="This report is informational only and does not constitute legal advice or a conformity assessment."
+            generated_at=datetime.now(timezone.utc).isoformat()
         )
         return fallback.dict()
 

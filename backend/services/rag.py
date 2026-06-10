@@ -1,99 +1,209 @@
-from groq import Groq
+"""
+v2 RAG service for Arkive AI.
+
+Improvements over v1:
+- Routes through ModelRouter (70B for complex queries, 8B for simple)
+- Self-consistency confidence scoring via secondary LLM call
+- Returns chunks_used with page numbers and article numbers for citations
+- Responses below 0.7 confidence flagged for human review
+- Redis caching for repeated queries (embedding similarity > 0.97)
+- Uses moderation.moderate_query() which now has proper Guard model support
+"""
+
 from services.embeddings import retrieve_relevant_chunks
 from services.moderation import moderate_query
 from services.audit import log_event
-from dotenv import load_dotenv
-import os
+from services.model_router import MODEL_70B, MODEL_8B, route_model, routed_chat
+from services.groq_client import groq_chat, GroqServiceError
+from services import cache as cache_svc
+from services.logger import get_logger
 
-load_dotenv()
+log = get_logger(__name__)
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+# Confidence threshold below which to flag for human review
+CONFIDENCE_REVIEW_THRESHOLD = 0.7
 
-def generate_answer(query: str, user_id: str = "user"):
+
+def _self_consistency_score(answer: str, context: str) -> float:
+    """
+    Ask the model: does this answer directly follow from the context? Rate 0-1.
+    Uses 8B model (structured, cheap call). Falls back to 0.8 on error.
+    """
+    prompt = (
+        f"Context:\n{context[:2000]}\n\n"
+        f"Answer:\n{answer[:1000]}\n\n"
+        "Does this answer directly and accurately follow from the provided context only? "
+        "Rate from 0.0 (completely unsupported) to 1.0 (perfectly grounded). "
+        "Respond with a single decimal number only (e.g. 0.85). No other text."
+    )
+    try:
+        resp = groq_chat(
+            model=MODEL_8B,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=10,
+            temperature=0,
+            task_type="self_consistency_check",
+        )
+        raw = resp.choices[0].message.content.strip()
+        score = float(raw)
+        return max(0.0, min(1.0, score))
+    except Exception as e:
+        log.warning("self_consistency_score_failed", extra={"error": str(e)})
+        return 0.8  # Neutral fallback — don't punish good answers
+
+
+def generate_answer(query: str, user_id: str = "user", org_id: str | None = None) -> dict:
+    """
+    Generate a RAG answer for the given query.
+
+    Returns:
+        {
+            answer: str,
+            sources: [{source, page, article_number, section_title, chunk_index}],
+            flagged: bool,
+            confidence: float (0-100),
+            confidence_explanation: str,
+            needs_human_review: bool,
+            moderation_status: str,
+            chunks_used: int,
+        }
+    """
+    # ── Step 1: Moderation ────────────────────────────────────────────────────
     moderation_result = moderate_query(query)
-    if moderation_result["is_flagged"]:
+    if moderation_result.get("is_flagged"):
         log_event("flagged_query", user_id, {
             "query": query,
-            "reason": moderation_result["reason"]
-        })
+            "reason": moderation_result.get("reason"),
+            "moderation_status": moderation_result.get("moderation_status"),
+        }, org_id=org_id)
         return {
-            "answer": f"Your query was flagged: {moderation_result['reason']}. Please rephrase.",
+            "answer": f"Your query was flagged: {moderation_result.get('reason', 'unsafe content')}. Please rephrase.",
             "sources": [],
             "flagged": True,
-            "confidence": 0
+            "confidence": 0,
+            "confidence_explanation": "Query was flagged by content moderation.",
+            "needs_human_review": False,
+            "moderation_status": moderation_result.get("moderation_status"),
+            "chunks_used": 0,
         }
 
-    relevant_chunks = retrieve_relevant_chunks(query, top_k=3)
+    # ── Step 2: Check embedding cache ────────────────────────────────────────
+    from services.embeddings import _get_query_embedding
+    try:
+        query_embedding = _get_query_embedding(query)
+        cached = cache_svc.get_rag_response(query_embedding)
+        if cached:
+            log.info("rag_cache_hit", extra={"user_id": user_id})
+            return cached
+    except Exception:
+        query_embedding = None
+
+    # ── Step 3: Retrieve relevant chunks (top-5 after reranking) ─────────────
+    relevant_chunks = retrieve_relevant_chunks(query, top_k=5)
 
     if not relevant_chunks:
         return {
-            "answer": "I couldn't find relevant information in the knowledge base.",
+            "answer": "I couldn't find relevant information in the knowledge base for your query.",
             "sources": [],
             "flagged": False,
-            "confidence": 0
+            "confidence": 0,
+            "confidence_explanation": "No relevant chunks found in the knowledge base.",
+            "needs_human_review": True,
+            "moderation_status": moderation_result.get("moderation_status"),
+            "chunks_used": 0,
         }
 
-    scores = [chunk.get("score", 0) for chunk in relevant_chunks]
-    avg_score = sum(scores) / len(scores) if scores else 0
-    confidence = round(avg_score * 100, 1) 
-
+    # ── Step 4: Build context with rich citation metadata ────────────────────
     context = ""
     for i, chunk in enumerate(relevant_chunks):
-        context += f"\n[Source {i+1} - {chunk['source']} Page {chunk['page']}]\n"
+        article_ref = f" [{chunk.get('article_number', '')}]" if chunk.get("article_number") else ""
+        section_ref = f" — {chunk.get('section_title', '')}" if chunk.get("section_title") else ""
+        context += f"\n[Source {i+1} — {chunk['source']} Page {chunk['page']}{article_ref}{section_ref}]\n"
         context += chunk["text"] + "\n"
 
-    prompt = f"""You are Arkive AI, an ethical AI assistant governed by UNESCO and OECD AI principles.
+    # ── Step 5: Route model based on query complexity ─────────────────────────
+    model = route_model(query, task_type="rag")
 
-Context from knowledge base:
+    prompt = f"""You are Arkive AI, an EU AI Act compliance intelligence assistant.
+
+Context from the knowledge base (EU AI Act, UNESCO AI Ethics, OECD AI Principles):
 {context}
 
-Rules:
-- Answer ONLY based on the context above
-- If the answer is not in the context, say "I don't have enough information about this in the knowledge base."
-- NEVER provide instructions for illegal activities, hacking, privacy violations, or harmful acts
-- If a question asks HOW TO do something potentially harmful or illegal, refuse and explain why
-- At the end of your answer, always list which sources you used
-- Be concise and clear
-- Do NOT mention which sources don't contain information. Only mention sources that ARE used.
-- Always end your response with: "Disclaimer: This information is for educational purposes only and does not constitute legal advice or a formal conformity assessment."
+Instructions:
+- Answer ONLY using the provided context above
+- If the answer is not in the context, say "I don't have enough information about this in my knowledge base"
+- When referencing regulations, cite the specific article number (e.g. "Article 13 of the EU AI Act")
+- Be precise and concise
+- List which sources you used at the end of your answer
 
-User Question: {query}
+Question: {query}
 
 Answer:"""
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0,
-        max_tokens=500
-    )
-    answer = response.choices[0].message.content
+    try:
+        response = routed_chat(
+            query=query,
+            task_type="rag",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+            max_tokens=800,
+        )
+        answer = response.choices[0].message.content
 
-    log_event("query", user_id, {
-        "query": query,
-        "answer_preview": answer[:100],
-        "sources_used": [c["source"] for c in relevant_chunks],
-        "confidence": confidence
-    })
+    except GroqServiceError as e:
+        return {**e.to_api_response(), "sources": [], "flagged": False, "chunks_used": 0}
 
-    if confidence > 70:
-        confidence_explanation = "Strong semantic match — answer is well-grounded in source documents."
-    elif confidence >= 40:
-        confidence_explanation = "Moderate match — answer may require verification."
+    # ── Step 6: Self-consistency confidence scoring ───────────────────────────
+    consistency_score = _self_consistency_score(answer, context)
+    needs_human_review = consistency_score < CONFIDENCE_REVIEW_THRESHOLD
+
+    # Legacy confidence format (0-100) for backward compatibility with frontend
+    retrieval_confidence = sum(c.get("score", 0) for c in relevant_chunks) / len(relevant_chunks)
+    display_confidence = round(min(consistency_score, retrieval_confidence) * 100, 1)
+
+    if display_confidence > 75:
+        confidence_explanation = "Strong grounding — answer is well-supported by source documents."
+    elif display_confidence >= 50:
+        confidence_explanation = "Moderate grounding — answer may require verification against source documents."
     else:
-        confidence_explanation = "Weak match — answer may not be fully supported."
+        confidence_explanation = "Weak grounding — answer may not be fully supported. Consider consulting source documents directly."
 
-    return {
+    # ── Step 7: Log and cache ────────────────────────────────────────────────
+    log_event("rag_query", user_id, {
+        "query": query,
+        "answer_preview": answer[:150],
+        "sources_used": [c["source"] for c in relevant_chunks],
+        "confidence": display_confidence,
+        "needs_human_review": needs_human_review,
+        "model_used": model,
+    }, org_id=org_id)
+
+    result = {
         "answer": answer,
         "sources": [
             {
-                "source": chunk["source"],
-                "page": chunk["page"],
-                "chunk_index": chunk["chunk_index"]
+                "source": c["source"],
+                "page": c["page"],
+                "article_number": c.get("article_number"),
+                "section_title": c.get("section_title"),
+                "chunk_index": c["chunk_index"],
+                "relevance_score": round(c.get("score", 0), 3),
             }
-            for chunk in relevant_chunks
+            for c in relevant_chunks
         ],
         "flagged": False,
-        "confidence": confidence,
-        "confidence_explanation": confidence_explanation
+        "confidence": display_confidence,
+        "confidence_explanation": confidence_explanation,
+        "needs_human_review": needs_human_review,
+        "moderation_status": moderation_result.get("moderation_status"),
+        "chunks_used": len(relevant_chunks),
     }
+
+    # Cache the result
+    if query_embedding:
+        try:
+            cache_svc.set_rag_response(query_embedding, query, result)
+        except Exception:
+            pass
+
+    return result

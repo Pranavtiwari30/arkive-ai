@@ -80,11 +80,19 @@ function AuthPage({ onAuthSuccess }) {
         <div className="auth-tabs">
           <button
             className={`auth-tab ${mode === "login" ? "active" : ""}`}
-            onClick={() => { setMode("login"); setError(null) }}
+            onClick={() => {
+              setMode("login")
+              setError(null)
+              setForm({ email: "", password: "", display_name: "", organisation: "" })
+            }}
           >Sign In</button>
           <button
             className={`auth-tab ${mode === "register" ? "active" : ""}`}
-            onClick={() => { setMode("register"); setError(null) }}
+            onClick={() => {
+              setMode("register")
+              setError(null)
+              setForm({ email: "", password: "", display_name: "", organisation: "" })
+            }}
           >Register</button>
         </div>
 
@@ -164,10 +172,7 @@ function AuthPage({ onAuthSuccess }) {
           </button>
         </form>
 
-        {/* Disclaimer */}
-        <div className="auth-disclaimer" style={{ fontSize: '11px', color: 'var(--grey-500)', marginTop: '20px', lineHeight: '1.5', textAlign: 'center' }}>
-          <strong>Legal Disclaimer:</strong> Arkive AI is an informational tool only. Outputs do not constitute legal advice, a conformity assessment, or a legally binding compliance determination under the EU AI Act or any other regulation. For legal compliance obligations, consult a qualified legal professional or accredited conformity assessment body.
-        </div>
+
       </div>
     </div>
   )

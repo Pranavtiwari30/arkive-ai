@@ -147,9 +147,7 @@ function RiskTier() {
                 </div>
               )}
             </div>
-            <div style={{ marginTop: '20px', fontSize: '11px', color: 'var(--grey-500)', lineHeight: '1.5', textAlign: 'center' }}>
-              <strong>Legal Disclaimer:</strong> Arkive AI is an informational tool only. Outputs do not constitute legal advice, a conformity assessment, or a legally binding compliance determination under the EU AI Act or any other regulation. For legal compliance obligations, consult a qualified legal professional or accredited conformity assessment body.
-            </div>
+
             </>
           )}
         </div>

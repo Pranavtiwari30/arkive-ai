@@ -2,380 +2,397 @@ import { useState, useRef } from "react"
 import api from "../api"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import "./ComplianceCheck.css"
+import { Upload, FileText, CheckSquare, X, AlertTriangle, Clock } from 'lucide-react'
+import PageHeader from './PageHeader'
+
+const ACCEPTED_TYPES = [
+  { ext: ".pdf",  label: "PDF",  mime: "application/pdf" },
+  { ext: ".docx", label: "DOCX", mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
+  { ext: ".txt",  label: "TXT",  mime: "text/plain" },
+]
+const ACCEPTED_EXTENSIONS = ACCEPTED_TYPES.map(t => t.ext)
+const ACCEPTED_MIME      = ACCEPTED_TYPES.map(t => t.mime)
+const ACCEPT_ATTR        = ACCEPTED_TYPES.map(t => `${t.mime},${t.ext}`).join(",")
+
 const PILLARS = [
-  { key: "transparency", label: "Transparency", ref: "UNESCO Art. 21 · OECD 1.2" },
-  { key: "human_oversight", label: "Human Oversight", ref: "EU AI Act Art. 14 · OECD 1.4" },
-  { key: "privacy", label: "Privacy & Data Protection", ref: "EU AI Act Art. 10 · UNESCO Art. 22" },
-  { key: "fairness", label: "Fairness & Non-discrimination", ref: "UNESCO Art. 23 · OECD 1.3" },
-  { key: "accountability", label: "Accountability", ref: "EU AI Act Art. 16 · OECD 1.5" },
-  { key: "safety", label: "Safety & Security", ref: "EU AI Act Art. 9 · UNESCO Art. 24" },
-  { key: "sustainability", label: "Sustainability", ref: "UNESCO Art. 25 · OECD 1.1" },
-  { key: "inclusivity", label: "Inclusivity", ref: "UNESCO Art. 26 · OECD 1.3" },
+  { key: "transparency",    label: "Transparency",              ref: "UNESCO Art. 21 · OECD 1.2" },
+  { key: "human_oversight", label: "Human Oversight",           ref: "EU AI Act Art. 14 · OECD 1.4" },
+  { key: "privacy",         label: "Privacy & Data Protection", ref: "EU AI Act Art. 10 · UNESCO Art. 22" },
+  { key: "fairness",        label: "Fairness & Non-discrimination", ref: "UNESCO Art. 23 · OECD 1.3" },
+  { key: "accountability",  label: "Accountability",            ref: "EU AI Act Art. 16 · OECD 1.5" },
+  { key: "safety",          label: "Safety & Security",         ref: "EU AI Act Art. 9 · UNESCO Art. 24" },
+  { key: "sustainability",  label: "Sustainability",            ref: "UNESCO Art. 25 · OECD 1.1" },
+  { key: "inclusivity",     label: "Inclusivity",               ref: "UNESCO Art. 26 · OECD 1.3" },
 ]
 
-function ComplianceCheck() {
-  const [file, setFile] = useState(null)
-  const [password, setPassword] = useState("")
-  const [checking, setChecking] = useState(false)
-  const [report, setReport] = useState(null)
-  const [error, setError] = useState("")
-  const [dragOver, setDragOver] = useState(false)
+function getFileExt(name) {
+  return name ? name.slice(name.lastIndexOf(".")).toLowerCase() : ""
+}
+
+export default function ComplianceCheck() {
+  const [file,         setFile]         = useState(null)
+  const [password,     setPassword]     = useState("")
+  const [checking,     setChecking]     = useState(false)
+  const [report,       setReport]       = useState(null)
+  const [error,        setError]        = useState("")
+  const [dragOver,     setDragOver]     = useState(false)
   const [expandedCode, setExpandedCode] = useState({})
   const fileRef = useRef(null)
 
   const handleFile = (f) => {
-    if (f && f.type === "application/pdf") {
-      setFile(f)
-      setError("")
-      setReport(null)
+    if (!f) return
+    const ext = getFileExt(f.name)
+    if (ACCEPTED_EXTENSIONS.includes(ext) || ACCEPTED_MIME.includes(f.type)) {
+      setFile(f); setError(""); setReport(null)
     } else {
-      setError("Please upload a PDF file.")
+      setError("Unsupported file. Please upload a PDF, DOCX, or TXT file.")
     }
   }
 
   const handleDrop = (e) => {
-    e.preventDefault()
-    setDragOver(false)
-    const f = e.dataTransfer.files[0]
-    handleFile(f)
+    e.preventDefault(); setDragOver(false)
+    handleFile(e.dataTransfer.files[0])
   }
 
   const runCheck = async () => {
     if (!file) return
-    setChecking(true)
-    setError("")
-    setReport(null)
-
+    setChecking(true); setError(""); setReport(null)
     const formData = new FormData()
     formData.append("file", file)
-    if (password) {
-      formData.append("password", password)
-    }
-
+    if (password) formData.append("password", password)
     try {
       const res = await api.post(`/api/compliance/check`, formData)
       setReport(res.data)
     } catch (err) {
-      console.error(err)
-      const detailMsg = err.response?.data?.detail || "Compliance check failed. Please try again."
-      setError(detailMsg)
+      setError(err.response?.data?.detail || "Compliance check failed. Please try again.")
     }
     setChecking(false)
   }
 
-  const resetCheck = () => {
-    setFile(null)
-    setPassword("")
-    setReport(null)
-    setError("")
-  }
+  const resetCheck = () => { setFile(null); setPassword(""); setReport(null); setError("") }
 
-  const passCount = report?.compliance_score != null 
-    ? report.compliance_score 
+  const passCount = report?.compliance_score != null
+    ? report.compliance_score
     : (report?.pillars ? report.pillars.filter(p => p.status === "PASS" || p.status === "pass").length : 0)
 
+  const scoreColor = passCount >= 6
+    ? "oklch(0.55 0.18 145)"
+    : passCount >= 4
+      ? "oklch(0.65 0.18 55)"
+      : "oklch(0.6 0.22 30)"
+
   return (
-    <div className="page-container compliance-container">
-      <div className="page-topbar">
-        <div className="page-topbar-left">
-          <div className="page-topbar-title">Compliance Check</div>
-          <div className="page-topbar-sub">Upload your AI policy to verify against international standards</div>
-        </div>
-        {report && (
-          <div className="topbar-actions">
-            <button className="topbar-btn" onClick={resetCheck}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-              New Check
-            </button>
-          </div>
-        )}
+    <div className="max-w-6xl mx-auto">
+      <PageHeader
+        eyebrow="Workspace · Compliance"
+        title="Compliance"
+        accentWord="Check"
+        description="Upload your AI policy document. Arkive scores it against 8 pillars derived from UNESCO AI Ethics, OECD Principles, and the EU AI Act."
+      />
+
+      {/* Standards chips */}
+      <div className="flex gap-2 mt-4 flex-wrap">
+        {["UNESCO AI Ethics (2021)", "OECD AI Principles (2019)", "EU AI Act (2024)"].map(s => (
+          <span
+            key={s}
+            className="text-[11px] font-medium px-3 py-1 rounded-full"
+            style={{ background: "oklch(0.4 0.15 300 / 0.2)", color: "oklch(0.75 0.18 300)", boxShadow: "inset 0 0 0 1px oklch(0.5 0.2 300 / 0.3)" }}
+          >
+            {s}
+          </span>
+        ))}
       </div>
 
-      <div className="page-content">
-        {!report && (
-          <>
-            <div className="compliance-intro">
-              <h2>Policy Compliance Verification</h2>
-              <p>Upload your organisation's AI policy document. Arkive AI will check it against 8 compliance pillars derived from UNESCO AI Ethics, OECD AI Principles, and the EU AI Act.</p>
-              <div className="standards-row">
-                <span className="std-chip">UNESCO AI Ethics (2021)</span>
-                <span className="std-chip">OECD AI Principles (2019)</span>
-                <span className="std-chip">EU AI Act (2024)</span>
-              </div>
-            </div>
-
-            <div
-              className={`upload-zone ${dragOver ? "drag-over" : ""} ${file ? "has-file" : ""}`}
-              onClick={() => !file && fileRef.current.click()}
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={handleDrop}
-            >
-              <input
-                type="file"
-                accept=".pdf"
-                ref={fileRef}
-                onChange={e => handleFile(e.target.files[0])}
-                style={{ display: "none" }}
-              />
-
-              {file ? (
-                <div className="file-selected">
-                  <div className="file-selected-icon">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                      <polyline points="14 2 14 8 20 8"/>
-                    </svg>
-                  </div>
-                  <div className="file-selected-info">
-                    <div className="file-selected-name">{file.name}</div>
-                    <div className="file-selected-size">{(file.size / 1024).toFixed(1)} KB — Ready to check</div>
-                  </div>
-                  <button className="file-remove-btn" onClick={(e) => { e.stopPropagation(); setFile(null) }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                  </button>
+      {!report ? (
+        <div className="mt-8 flex justify-center">
+          {/* Upload panel */}
+          <div className="w-full max-w-2xl flex flex-col gap-5">
+            <div className="rounded-3xl glass-panel hairline p-6">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: "oklch(0.4 0.15 300 / 0.25)", color: "oklch(0.75 0.2 300)" }}>
+                  <Upload size={20} strokeWidth={2} />
                 </div>
-              ) : (
-                <>
-                  <div className="upload-icon-wrap">
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                      <polyline points="17 8 12 3 7 8"/>
-                      <line x1="12" y1="3" x2="12" y2="15"/>
-                    </svg>
-                  </div>
-                  <div className="upload-text">
-                    <h3>Drop your AI policy PDF here</h3>
-                    <p>or click to browse files</p>
-                  </div>
-                </>
-              )}
-            </div>
+                <div>
+                  <h3 className="font-semibold text-[15px]">Upload policy document</h3>
+                  <p className="text-[13px] text-muted-foreground mt-0.5">PDF, DOCX or TXT · up to 100 MB</p>
+                </div>
+              </div>
 
-            {file && (
-              <div className="compliance-password-wrapper">
-                <div className="compliance-password-field">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lock-icon">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              {/* Drop zone */}
+              <label
+                htmlFor="compliance-file-input"
+                className={`block rounded-2xl p-10 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 ${
+                  dragOver
+                    ? "ring-2 ring-primary/60"
+                    : "hover:ring-1 hover:ring-primary/40"
+                }`}
+                style={{
+                  border: "2px dashed oklch(1 0 0 / 0.12)",
+                  background: dragOver
+                    ? "oklch(0.5 0.2 310 / 0.12)"
+                    : "oklch(0.18 0.03 285 / 0.2)",
+                }}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={handleDrop}
+              >
+                <input
+                  id="compliance-file-input"
+                  type="file"
+                  accept={ACCEPT_ATTR}
+                  ref={fileRef}
+                  onChange={e => handleFile(e.target.files[0])}
+                  style={{ display: "none" }}
+                  onClick={e => { if (file) e.preventDefault() }}
+                />
+
+                {file ? (
+                  <div className="flex items-center gap-4 w-full max-w-sm text-left">
+                    <div className="h-11 w-11 shrink-0 rounded-xl flex items-center justify-center" style={{ background: "oklch(0.4 0.15 300 / 0.2)", color: "oklch(0.75 0.2 300)" }}>
+                      <FileText size={20} strokeWidth={1.8} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] font-medium truncate">{file.name}</p>
+                      <p className="text-[12px] text-muted-foreground mt-0.5">{(file.size / 1024).toFixed(1)} KB · Ready to analyse</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="shrink-0 h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setFile(null) }}
+                    >
+                      <X size={15} strokeWidth={2} />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <FileText size={32} className="text-muted-foreground/40 mb-4" strokeWidth={1.5} />
+                    <p className="text-[15px] font-medium mb-1">Drop your document here</p>
+                    <p className="text-[13px] text-muted-foreground mb-5">or click to browse files</p>
+                    <div className="flex gap-2">
+                      {ACCEPTED_TYPES.map(t => (
+                        <span
+                          key={t.ext}
+                          className="text-[10.5px] font-semibold px-2.5 py-1 rounded-md font-mono"
+                          style={{ background: "oklch(1 0 0 / 0.07)", color: "oklch(0.7 0 0)", boxShadow: "inset 0 0 0 1px oklch(1 0 0 / 0.1)" }}
+                        >
+                          {t.label}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </label>
+
+              {/* PDF Password field */}
+              {file && getFileExt(file.name) === ".pdf" && (
+                <div className="mt-4 flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: "oklch(0.18 0.03 285 / 0.6)", boxShadow: "inset 0 0 0 1px oklch(1 0 0 / 0.08)" }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground shrink-0">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                   </svg>
                   <input
                     type="password"
-                    className="compliance-password-input"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    placeholder="Document password (optional)..."
-                    title="Provide if the PDF is password-protected"
+                    placeholder="Document password (optional)"
+                    className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground/50"
                     disabled={checking}
                   />
                 </div>
-              </div>
-            )}
+              )}
 
-            {error && <p className="compliance-error">{error}</p>}
+              {error && (
+                <div className="mt-4 flex items-center gap-2 text-[13px] rounded-xl px-4 py-3" style={{ background: "oklch(0.6 0.22 30 / 0.12)", color: "oklch(0.7 0.22 30)", boxShadow: "inset 0 0 0 1px oklch(0.6 0.22 30 / 0.3)" }}>
+                  <AlertTriangle size={14} strokeWidth={2} className="shrink-0" />
+                  {error}
+                </div>
+              )}
 
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
               <button
-                className="run-check-btn"
                 onClick={runCheck}
                 disabled={!file || checking}
+                className="mt-5 w-full flex items-center justify-center gap-2 rounded-2xl py-3.5 text-[14px] font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: "oklch(0.92 0.01 285)", color: "oklch(0.1 0.02 285)" }}
               >
                 {checking ? (
                   <>
-                    <div className="btn-spinner"/>
-                    Analysing document...
+                    <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round"/>
+                    </svg>
+                    Analysing document…
                   </>
                 ) : (
                   <>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="9 11 12 14 22 4"/>
-                      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-                    </svg>
+                    <CheckSquare size={16} strokeWidth={2} />
                     Run Compliance Check
                   </>
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      ) : (
+        /* ── REPORT VIEW ── */
+        <div className="mt-8">
+          {/* Report header */}
+          <div className="rounded-3xl glass-panel hairline p-6 mb-5 flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 shrink-0 rounded-xl flex items-center justify-center" style={{ background: "oklch(0.4 0.15 300 / 0.25)", color: "oklch(0.75 0.2 300)" }}>
+                <FileText size={22} strokeWidth={1.8} />
+              </div>
+              <div>
+                <p className="text-[16px] font-semibold">{file?.name}</p>
+                <p className="text-[12px] text-muted-foreground font-mono mt-0.5">
+                  Analysed · {new Date().toLocaleDateString()} · 3 standards · 8 pillars
+                </p>
+                <div className="flex gap-2 mt-2">
+                  {["UNESCO AI Ethics", "OECD Principles", "EU AI Act 2024"].map(s => (
+                    <span key={s} className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "oklch(1 0 0 / 0.07)", color: "oklch(0.65 0 0)", boxShadow: "inset 0 0 0 1px oklch(1 0 0 / 0.1)" }}>{s}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <div
+                className="text-center rounded-2xl px-5 py-3"
+                style={{
+                  background: passCount >= 6
+                    ? "oklch(0.4 0.12 145 / 0.15)"
+                    : passCount >= 4
+                      ? "oklch(0.5 0.18 55 / 0.15)"
+                      : "oklch(0.5 0.22 30 / 0.15)",
+                  boxShadow: `inset 0 0 0 1px ${scoreColor.replace(")", " / 0.4)")}`
+                }}
+              >
+                <p className="font-serif text-3xl font-bold leading-none" style={{ color: scoreColor }}>{passCount}/8</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mt-1" style={{ color: scoreColor }}>
+                  {passCount >= 6 ? "Compliant" : passCount >= 4 ? "Partial" : "Non-Compliant"}
+                </p>
+              </div>
+              <button
+                onClick={resetCheck}
+                className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-medium text-muted-foreground hover:text-foreground hover:bg-white/8 transition-colors"
+                style={{ boxShadow: "inset 0 0 0 1px oklch(1 0 0 / 0.1)" }}
+              >
+                <Upload size={14} strokeWidth={2} />
+                New Check
+              </button>
+            </div>
+          </div>
 
-            <div className="pillars-preview">
-              <div className="pillars-preview-label">8 compliance pillars checked</div>
-              <div className="pillars-preview-grid">
-                {PILLARS.map(p => (
-                  <div key={p.key} className="pillar-preview-item">
-                    <div className="pillar-preview-dot"/>
-                    {p.label}
+          {/* Pillars grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+            {PILLARS.map(p => {
+              const result  = report.pillars?.find(rp => rp.pillar_name?.toLowerCase().includes(p.label.toLowerCase().split(" ")[0]))
+              const pass    = result?.status === "PASS" || result?.status === "pass"
+              const hasCode = !pass && result?.recommendation != null
+              const isOpen  = expandedCode[p.key]
+              let displayCode = result?.recommendation
+              if (typeof displayCode === "string") displayCode = displayCode.replace(/\\n/g, "\n").replace(/\\"/g, '"')
+
+              const passStyle  = { bg: "oklch(0.4 0.12 145 / 0.2)", border: "oklch(0.5 0.15 145 / 0.5)", dot: "oklch(0.6 0.18 145)", label: "oklch(0.65 0.18 145)" }
+              const failStyle  = { bg: "oklch(0.5 0.2 30 / 0.12)", border: "oklch(0.55 0.22 30 / 0.4)", dot: "oklch(0.65 0.22 30)", label: "oklch(0.65 0.22 30)" }
+              const s = pass ? passStyle : failStyle
+
+              return (
+                <div
+                  key={p.key}
+                  className="rounded-2xl p-5 flex flex-col gap-3"
+                  style={{ background: s.bg, boxShadow: `inset 0 0 0 1px ${s.border}` }}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="h-5 w-5 rounded-full shrink-0 mt-0.5 flex items-center justify-center" style={{ background: s.dot + " / 0.2" }}>
+                      {pass ? (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={s.dot} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      ) : (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={s.dot} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <p className="text-[14px] font-semibold">{p.label}</p>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ color: s.label, background: s.dot + " / 0.15", boxShadow: `inset 0 0 0 1px ${s.border}` }}>
+                          {pass ? "PASS" : "GAP"}
+                        </span>
+                      </div>
+                      <p className="text-[10.5px] text-muted-foreground font-mono mt-0.5">{p.ref}</p>
+                      {result?.finding && (
+                        <p className="text-[12.5px] text-foreground/75 mt-2 leading-relaxed">{result.finding}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {hasCode && (
+                    <button
+                      onClick={() => setExpandedCode(prev => ({ ...prev, [p.key]: !prev[p.key] }))}
+                      className="self-start text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all"
+                      style={{ background: "oklch(1 0 0 / 0.07)", color: "oklch(0.7 0.18 55)", boxShadow: "inset 0 0 0 1px oklch(1 0 0 / 0.1)" }}
+                    >
+                      {isOpen ? "Hide Guardrail" : "Generate Guardrail ↗"}
+                    </button>
+                  )}
+
+                  {hasCode && isOpen && (
+                    <div className="relative rounded-xl overflow-hidden mt-1">
+                      <button
+                        className="absolute top-2 right-2 text-[10px] px-2.5 py-1 rounded-md z-10 transition-colors"
+                        style={{ background: "rgba(255,255,255,0.12)", color: "white" }}
+                        onClick={() => navigator.clipboard.writeText(result.recommendation)}
+                      >
+                        Copy
+                      </button>
+                      <SyntaxHighlighter
+                        language="json"
+                        style={vscDarkPlus}
+                        customStyle={{ margin: 0, padding: "16px", fontSize: "12px", borderRadius: "12px", overflowX: "auto" }}
+                        wrapLongLines
+                      >
+                        {displayCode}
+                      </SyntaxHighlighter>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Gaps / recommendations */}
+          {report.pillars?.some(p => p.status !== "PASS" && p.status !== "pass") && (
+            <div className="rounded-3xl glass-panel hairline p-6 mb-5">
+              <h4 className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-4 flex items-center gap-2">
+                <AlertTriangle size={12} strokeWidth={2} />
+                Recommendations
+              </h4>
+              <div className="flex flex-col gap-3">
+                {report.pillars.filter(p => p.status !== "PASS" && p.status !== "pass").map((gap, i) => (
+                  <div key={i} className="flex gap-3 items-start">
+                    <span className="h-5 w-5 shrink-0 rounded-full flex items-center justify-center text-[10px] font-bold mt-0.5" style={{ background: "oklch(0.65 0.18 55 / 0.2)", color: "oklch(0.7 0.18 55)" }}>
+                      {i + 1}
+                    </span>
+                    <div className="text-[13px] text-foreground/80 leading-relaxed">
+                      <strong className="text-foreground">{gap.pillar_name}</strong>: {gap.gap_description}
+                      {gap.confidence != null && (
+                        <span className="ml-2 text-[11px] text-muted-foreground font-mono">
+                          match: {gap.confidence}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
-          </>
-        )}
+          )}
 
-        {report && (
-          <div className="report-card">
-            <div className="report-header">
-              <div className="report-header-left">
-                <div className="report-file-row">
-                  <div className="report-file-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                      <polyline points="14 2 14 8 20 8"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="report-filename">{file?.name}</div>
-                    <div className="report-meta">
-                      Analysed · {new Date().toLocaleDateString()} · 3 standards · 8 pillars
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className={`score-badge ${passCount >= 6 ? "good" : passCount >= 4 ? "partial" : "poor"}`}>
-                <div className="score-number">{passCount}/8</div>
-                <div className="score-label">
-                  {passCount >= 6 ? "Compliant" : passCount >= 4 ? "Partial" : "Non-Compliant"}
-                </div>
-              </div>
-            </div>
 
-            <div className="report-standards-bar">
-              <span className="standards-bar-label">Standards</span>
-              <span className="std-chip-sm">UNESCO AI Ethics</span>
-              <span className="std-chip-sm">OECD Principles</span>
-              <span className="std-chip-sm">EU AI Act 2024</span>
-            </div>
-
-            <div className="pillars-grid">
-              {PILLARS.map(p => {
-                const result = report.pillars?.find(rp => rp.pillar_name && rp.pillar_name.toLowerCase().includes(p.label.toLowerCase().split(' ')[0]))
-                const pass = result?.status === "PASS" || result?.status === "pass"
-                const hasCode = !pass && result?.recommendation != null
-                const isExpanded = expandedCode[p.key]
-
-                let displayCode = result?.recommendation;
-                if (typeof displayCode === 'string') {
-                  displayCode = displayCode.replace(/\\n/g, '\n').replace(/\\"/g, '"');
-                }
-
-                return (
-                  <div key={p.key} className="pillar-card">
-                    <div className="pillar-row">
-                      <div className={`pillar-status ${pass ? "pass" : "fail"}`}>
-                        {pass ? (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12"/>
-                          </svg>
-                        ) : (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                          </svg>
-                        )}
-                      </div>
-                      <div className="pillar-info">
-                        <div className="pillar-name">{p.label}</div>
-                        <div className="pillar-ref">{p.ref}</div>
-                        {result?.finding && (
-                          <div className="pillar-note">{result.finding}</div>
-                        )}
-                      </div>
-                      <div className="pillar-actions">
-                        <span className={`pillar-chip ${pass ? "pass" : "fail"}`}>
-                          {pass ? "PASS" : "GAP"}
-                        </span>
-                        {hasCode && (
-                          <button 
-                            className="remediation-btn"
-                            onClick={() => setExpandedCode(prev => ({...prev, [p.key]: !prev[p.key]}))}
-                          >
-                            {isExpanded ? "Hide Guardrail" : "Generate Guardrail"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    {hasCode && isExpanded && (
-                      <div className="remediation-code-container">
-                        <button 
-                          className="remediation-copy-btn"
-                          onClick={() => navigator.clipboard.writeText(result.recommendation)}
-                        >
-                          Copy
-                        </button>
-                        <SyntaxHighlighter 
-                          language="json" 
-                          style={vscDarkPlus}
-                          customStyle={{ margin: 0, padding: '16px', fontSize: '12px', borderRadius: '8px', overflowX: 'auto' }}
-                          wrapLongLines={true}
-                        >
-                          {displayCode}
-                        </SyntaxHighlighter>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-
-            {report.pillars && report.pillars.some(p => p.status !== "PASS" && p.status !== "pass") && (
-              <div className="report-gaps">
-                <div className="gaps-title">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17"/>
-                  </svg>
-                  Recommendations
-                </div>
-                <div className="gaps-list">
-                  {report.pillars.filter(p => p.status !== "PASS" && p.status !== "pass").map((gap, i) => (
-                    <div key={i} className="gap-item">
-                      <div className="gap-number">{i + 1}</div>
-                      <div className="gap-text">
-                        <strong>{gap.pillar_name}</strong>: {gap.gap_description}
-                        <br/>
-                        <span style={{color: 'var(--grey-500)', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px'}}>
-                          Retrieval match: {gap.confidence != null ? gap.confidence : 'N/A'}
-                          <div title="How closely the retrieved regulatory text matched your query. A high score means the answer is grounded in directly relevant source material. It does not indicate legal certainty.">
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ cursor: 'help' }}>
-                              <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
-                            </svg>
-                          </div>
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="report-disclaimer">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                <line x1="12" y1="9" x2="12" y2="13"/>
-                <line x1="12" y1="17" x2="12.01" y2="17"/>
-              </svg>
-              <span>
-                <strong>Legal Disclaimer:</strong> Arkive AI is an informational tool only. Outputs do not constitute legal advice, a conformity assessment, or a legally binding compliance determination under the EU AI Act or any other regulation. For legal compliance obligations, consult a qualified legal professional or accredited conformity assessment body.
-              </span>
-            </div>
-
-            <div className="report-footer">
-              <div className="report-deadline">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                </svg>
-                EU AI Act enforcement deadline: August 2026
-              </div>
-            </div>
+          <div className="flex items-center gap-2 mt-4 text-[12px] text-muted-foreground">
+            <Clock size={13} strokeWidth={2} />
+            EU AI Act enforcement deadline: August 2026
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
-
-export default ComplianceCheck

@@ -1,25 +1,78 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-sans antialiased bg-black text-foreground;
+    min-height: 100vh;
+  }
+
+  /* Aurora Background Container */
+  .aurora-canvas {
+    background:
+      radial-gradient(70% 55% at 12% 8%, oklch(0.45 0.18 285 / 0.32), transparent 70%),
+      radial-gradient(65% 55% at 92% 14%, oklch(0.45 0.18 250 / 0.28), transparent 72%),
+      radial-gradient(60% 50% at 50% 55%, oklch(0.5 0.2 325 / 0.22), transparent 75%),
+      radial-gradient(70% 55% at 8% 92%, oklch(0.42 0.18 270 / 0.3), transparent 72%),
+      radial-gradient(70% 55% at 95% 88%, oklch(0.48 0.2 330 / 0.28), transparent 72%),
+      linear-gradient(180deg, oklch(0.10 0.02 285), oklch(0.11 0.025 290));
+    filter: saturate(0.95);
+    position: relative;
+  }
+
+  .aurora-canvas::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: radial-gradient(oklch(1 0 0 / 0.05) 1px, transparent 1px);
+    background-size: 2px 2px;
+    mix-blend-mode: overlay;
+    opacity: 0.4;
+    border-radius: inherit;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-serif tracking-tight;
+  }
 }
 
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #0f0f13;
-  color: #e2e8f0;
-  height: 100vh;
-}
+@layer utilities {
+  .glass-panel {
+    background: linear-gradient(180deg,
+        oklch(1 0 0 / 0.08),
+        oklch(1 0 0 / 0.03));
+    backdrop-filter: blur(20px) saturate(1.2);
+    border-radius: 1.5rem;
+  }
 
-::-webkit-scrollbar {
-  width: 6px;
-}
+  .hairline {
+    box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.08);
+  }
 
-::-webkit-scrollbar-track {
-  background: #1a1a2e;
-}
+  .soft-shadow {
+    box-shadow:
+      0 1px 2px oklch(0.05 0.02 280 / 0.4),
+      0 8px 30px oklch(0.05 0.02 280 / 0.5);
+  }
 
-::-webkit-scrollbar-thumb {
-  background: #4a4a6a;
-  border-radius: 3px;
+  .gold-glow {
+    box-shadow: 0 10px 40px oklch(0.6 0.25 310 / 0.25);
+  }
+
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Custom utility to override input focus ring globally if needed, though ring classes will be used */
 }

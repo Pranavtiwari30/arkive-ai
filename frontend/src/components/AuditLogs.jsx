@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import api from "../api"
 import "./AuditLogs.css"
 
@@ -7,7 +7,7 @@ function AuditLogs() {
   const [loading, setLoading] = useState(true)
 
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       const res = await api.get(`/api/audit/`)
       setLogs(res.data.logs)
@@ -15,9 +15,10 @@ function AuditLogs() {
       console.error("Failed to fetch logs", err)
     }
     setLoading(false)
-  }
+  }, [])
 
-  useEffect(() => { fetchLogs() }, [])
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void fetchLogs() }, [fetchLogs])
 
   const getEventVariant = (type) => {
     switch(type) {

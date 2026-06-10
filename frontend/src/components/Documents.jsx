@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import api from "../api"
 import "./Documents.css"
 function Documents() {
@@ -6,7 +6,7 @@ function Documents() {
   const [loading, setLoading] = useState(true)
   const [kbMetadata, setKbMetadata] = useState(null)
 
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     try {
       const res = await api.get(`/api/documents/`)
       setDocuments(res.data.documents)
@@ -14,21 +14,22 @@ function Documents() {
       console.error("Failed to fetch documents", err)
     }
     setLoading(false)
-  }
+  }, [])
 
-  const fetchKbMetadata = async () => {
+  const fetchKbMetadata = useCallback(async () => {
     try {
       const res = await api.get(`/api/documents/knowledge-base/metadata`)
       setKbMetadata(res.data)
     } catch (err) {
       console.error("Failed to fetch KB metadata", err)
     }
-  }
+  }, [])
 
   useEffect(() => {
-    fetchDocuments()
-    fetchKbMetadata()
-  }, [])
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchDocuments()
+    void fetchKbMetadata()
+  }, [fetchDocuments, fetchKbMetadata])
 
   const expiringDocs = documents.filter(d => d.expiry_warning && !d.is_permanent)
 

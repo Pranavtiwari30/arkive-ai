@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react"
+import { Send, Paperclip, Clock, Plus, Shield, FileText, CheckSquare, Loader2 } from "lucide-react"
 import api from "../api"
 import ReactMarkdown from "react-markdown"
-import "./Chat.css"
+
 function Chat({ userId }) {
-  const [messages, setMessages] = useState([null])
+  const [messages, setMessages] = useState([])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -19,6 +20,12 @@ function Chat({ userId }) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  useEffect(() => {
+    const handleNewChat = () => newChat();
+    window.addEventListener('new-chat', handleNewChat);
+    return () => window.removeEventListener('new-chat', handleNewChat);
+  }, []);
+
   const fetchSessions = async () => {
     try {
       const res = await api.get(`/api/chat/sessions/${userId}`)
@@ -30,18 +37,15 @@ function Chat({ userId }) {
 
   useEffect(() => {
     fetchSessions()
-    // Fetch KB status for welcome card
     api.get(`/api/documents/kb-status`)
       .then(res => setKbLastUpdated(res.data.last_updated))
-      .catch(() => {})
+      .catch(() => { })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-
-
   const loadSession = async (sid) => {
     try {
-    const res = await api.get(`/api/chat/history/${sid}`)
+      const res = await api.get(`/api/chat/history/${sid}`)
       const loaded = res.data.messages.map(m => ({
         role: m.role,
         content: m.content,
@@ -59,26 +63,20 @@ function Chat({ userId }) {
   }
 
   const newChat = () => {
-    setMessages([null])
+    setMessages([])
     setSessionId(null)
     setShowSessions(false)
   }
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return
-    const userMessage = { role: "user", content: input, sources: [], confidence: 0, confidence_explanation: "" }
-    setMessages(prev => [...prev.filter(m => m !== null), userMessage])
+    const userMessage = { role: "user", content: input, sources: [], confidence: 0 }
+    setMessages(prev => [...prev, userMessage])
     setInput("")
     setLoading(true)
     try {
-      const res = await api.post(`/api/chat/`, {
-        query: input,
-        session_id: sessionId
-      })
-      if (!sessionId) {
-        setSessionId(res.data.session_id)
-        fetchSessions()
-      }
+      const res = await api.post(`/api/chat/`, { query: input, session_id: sessionId })
+      if (!sessionId) { setSessionId(res.data.session_id); fetchSessions() }
       setMessages(prev => [...prev, {
         role: "assistant",
         content: res.data.answer,
@@ -92,9 +90,7 @@ function Chat({ userId }) {
       setMessages(prev => [...prev, {
         role: "assistant",
         content: "Error connecting to backend. Please try again.",
-        sources: [],
-        confidence: 0,
-        confidence_explanation: ""
+        sources: [], confidence: 0, confidence_explanation: ""
       }])
     }
     setLoading(false)
@@ -106,224 +102,208 @@ function Chat({ userId }) {
     setUploading(true)
     const formData = new FormData()
     formData.append("file", file)
-    if (uploadPassword) {
-      formData.append("password", uploadPassword)
-    }
+    if (uploadPassword) formData.append("password", uploadPassword)
     try {
       const res = await api.post(`/api/documents/upload`, formData)
-      setMessages(prev => [...prev.filter(m => m !== null), {
+      setMessages(prev => [...prev, {
         role: "assistant",
         content: `**${file.name}** indexed successfully — ${res.data.total_chunks} chunks stored.`,
-        sources: [],
-        confidence: 0
+        sources: [], confidence: 0
       }])
       setUploadPassword("")
     } catch (err) {
-      console.error(err)
       const detailMsg = err.response?.data?.detail || "Upload failed. Please try again."
-      setMessages(prev => [...prev.filter(m => m !== null), {
+      setMessages(prev => [...prev, {
         role: "assistant",
         content: `Upload failed: ${detailMsg}`,
-        sources: [],
-        confidence: 0
+        sources: [], confidence: 0
       }])
     }
     setUploading(false)
     e.target.value = ""
   }
 
-  const showWelcome = messages.length === 1 && messages[0] === null
-
-  const SAMPLE_QUERIES = [
-    "What does the EU AI Act require for high-risk AI systems?",
-    "How does UNESCO define AI transparency obligations?",
-    "What are the OECD principles for trustworthy AI?",
-    "What are the penalties for non-compliance under EU AI Act?"
-  ]
+  const showWelcome = messages.length === 0
 
   return (
-    <div className="chat-container">
-      <div className="chat-topbar">
-        <div className="chat-topbar-left">
-          <div className="chat-topbar-title">AI Compliance Chat</div>
-          <div className="chat-topbar-sub">Query UNESCO, OECD & EU AI Act standards</div>
-        </div>
-        <div className="chat-topbar-actions">
-          <button className="topbar-btn" onClick={() => setShowSessions(!showSessions)}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-            History
-          </button>
-          <button className="topbar-btn topbar-btn-primary" onClick={newChat}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            New Chat
-          </button>
-        </div>
-      </div>
+    <div className="flex flex-col flex-1 h-full -mx-6 lg:-mx-10 -my-7 md:-mt-24 -mb-20">
 
+      {/* Sessions panel */}
       {showSessions && (
-        <div className="sessions-panel">
-          <div className="sessions-panel-title">Recent Sessions</div>
+        <div className="absolute top-0 left-64 right-0 z-20 glass-panel hairline rounded-none border-b border-border/20 px-8 py-4 max-h-48 overflow-y-auto">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-3">Recent Sessions</p>
           {sessions.length === 0 ? (
-            <p className="no-sessions">No previous sessions found</p>
-          ) : (
-            sessions.map(s => (
-              <div key={s._id} className="session-item" onClick={() => loadSession(s._id)}>
-                <div className="session-item-left">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                  </svg>
-                  Session
-                </div>
-                <span className="session-time">{new Date(s.last_active).toLocaleString()}</span>
-              </div>
-            ))
-          )}
+            <p className="text-[13px] text-muted-foreground">No previous sessions found</p>
+          ) : sessions.map(s => (
+            <div key={s._id}
+              onClick={() => loadSession(s._id)}
+              className="flex justify-between items-center px-3 py-2 rounded-xl hover:bg-[oklch(1_0_0/0.05)] cursor-pointer text-[13px] text-foreground/80 transition-colors"
+            >
+              <span className="flex items-center gap-2"><Clock size={12} className="text-muted-foreground" /> Session</span>
+              <span className="text-[11px] text-muted-foreground font-mono">{new Date(s.last_active).toLocaleString()}</span>
+            </div>
+          ))}
         </div>
       )}
 
-      <div className="messages-area">
-        {showWelcome && (
-          <div className="welcome-card">
-            <div className="welcome-header">
-              <div className="welcome-icon">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                </svg>
-              </div>
-              <div className="welcome-text">
-                <h2>Arkive AI — Compliance Intelligence</h2>
-                <p>Query international AI standards, verify compliance requirements, or upload your organisation's AI policy for a gap analysis.</p>
-              </div>
-            </div>
-            <div className="knowledge-base">
-              <div className="kb-tag"><div className="kb-dot"></div>UNESCO AI Ethics (2021)</div>
-              <div className="kb-tag"><div className="kb-dot"></div>OECD AI Principles (2019)</div>
-              <div className="kb-tag"><div className="kb-dot"></div>EU AI Act (2024)</div>
-            </div>
-            {kbLastUpdated && (
-              <div className="kb-updated-info">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                </svg>
-                Knowledge base last indexed: {new Date(kbLastUpdated).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-              </div>
-            )}
-            <div className="sample-queries">
-              <div className="sample-label">Suggested queries</div>
-              <div className="sample-grid">
-                {SAMPLE_QUERIES.map((q, i) => (
-                  <div key={i} className="sample-query" onClick={() => { setInput(q) }}>
-                    {q}
+      {/* Messages area */}
+      <div className="flex-1 overflow-y-auto flex flex-col">
+        {showWelcome ? (
+          /* Welcome hero */
+          <div className="flex-1 flex flex-col items-center justify-center px-6 py-16 text-center">
+            <div className="mb-7 inline-flex items-center gap-3 bg-foreground text-background rounded-full pl-1.5 pr-4 py-1.5">
+              <div className="flex -space-x-2">
+                {[Shield, CheckSquare, FileText].map((Icon, i) => (
+                  <div key={i} className="h-6 w-6 rounded-full ring-2 ring-foreground bg-[oklch(0.2_0.05_290)] flex items-center justify-center" style={{ zIndex: i }}>
+                    <Icon size={12} className="text-gold" />
                   </div>
                 ))}
               </div>
+              <span className="text-[13px] font-medium tracking-tight">Built on UNESCO · OECD · EU AI Act</span>
             </div>
-          </div>
-        )}
 
-        {messages.filter(m => m !== null).map((msg, i) => (
-          <div key={i} className={`message ${msg.role}`}>
-            <div className={`msg-avatar ${msg.role === "assistant" ? "ai" : "user-av"}`}>
-              {msg.role === "assistant" ? "A" : userId?.charAt(0).toUpperCase()}
+            <h1 className="font-serif text-5xl md:text-6xl tracking-tight mb-4">
+              Ready to verify, <span className="text-gold italic">John</span>?
+            </h1>
+            <p className="text-[15px] text-muted-foreground max-w-lg mb-8 leading-relaxed">
+              Query international AI standards or upload your organisation's policy for an instant gap analysis.
+            </p>
+
+            <div className="flex flex-wrap gap-2 justify-center">
+              {["UNESCO AI Ethics (2021)", "OECD AI Principles (2019)", "EU AI Act (2024)"].map(tag => (
+                <span key={tag} className="text-[11.5px] flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-panel hairline text-muted-foreground">
+                  {tag}
+                </span>
+              ))}
             </div>
-            <div className="msg-body">
-              {msg.role === "assistant" && msg.confidence > 0 && (
-                <div className="confidence-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px', marginBottom: '8px', padding: '8px', background: 'var(--grey-50)', borderRadius: '8px', border: '1px solid var(--grey-200)' }}>
-                  {msg.sources && msg.sources.length > 0 && (
-                    <div style={{ fontSize: '11px', color: 'var(--grey-600)' }}>
-                      <strong>Grounded in:</strong> {msg.sources.map((s, j) => (
-                        <span key={j}>{s.source} · p.{s.page}{j < msg.sources.length - 1 ? ' | ' : ''}</span>
-                      ))}
+
+            {kbLastUpdated && (
+              <p className="text-[11px] text-muted-foreground/60 mt-4 font-mono">
+                Knowledge base last indexed: {new Date(kbLastUpdated).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
+            )}
+          </div>
+        ) : (
+          /* Message thread */
+          <div className="flex-1 flex flex-col gap-6 px-6 lg:px-10 py-8 max-w-3xl mx-auto w-full">
+            {messages.map((msg, i) => (
+              <div key={i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+                {/* Avatar */}
+                <div className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center text-[12px] font-bold mt-0.5 ${msg.role === "assistant"
+                  ? "bg-foreground text-background"
+                  : "bg-primary text-white"
+                  }`}>
+                  {msg.role === "assistant" ? <Shield size={15} strokeWidth={2} /> : (userId?.charAt(0).toUpperCase() || "U")}
+                </div>
+
+                {/* Bubble */}
+                <div className="flex flex-col max-w-[82%]">
+                  {/* Confidence + sources (assistant only) */}
+                  {msg.role === "assistant" && msg.confidence > 0 && (
+                    <div className="glass-panel hairline rounded-xl px-4 py-2.5 mb-2 text-[12px] text-muted-foreground">
+                      {msg.sources?.length > 0 && (
+                        <p className="mb-1">
+                          <strong className="text-foreground/70">Grounded in: </strong>
+                          {msg.sources.map((s, j) => (
+                            <span key={j}>{s.source} · p.{s.page}{j < msg.sources.length - 1 ? " | " : ""}</span>
+                          ))}
+                        </p>
+                      )}
+                      <span className="text-foreground/60">Retrieval match: </span>
+                      <span className={`font-mono font-medium ${msg.confidence > 70 ? "text-emerald-400" : msg.confidence > 40 ? "text-amber-400" : "text-destructive"}`}>
+                        {(msg.confidence / 100).toFixed(2)}
+                      </span>
                     </div>
                   )}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span className="confidence-label" style={{ fontWeight: 600, color: 'var(--grey-700)' }}>Retrieval match:</span>
-                    <span className="confidence-pct" style={{
-                      color: msg.confidence > 70 ? "var(--green)" : msg.confidence > 40 ? "#d97706" : "var(--red)",
-                      fontWeight: 500
-                    }}>{(msg.confidence / 100).toFixed(2)}</span>
-                    <div className="confidence-info" title="How closely the retrieved regulatory text matched your query. A high score means the answer is grounded in directly relevant source material. It does not indicate legal certainty.">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--grey-400)', cursor: 'help' }}>
-                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div className="msg-bubble">
-                <ReactMarkdown>{msg.content}</ReactMarkdown>
-              </div>
-              {msg.flagged && (
-                <div className="flagged-badge">Content flagged by moderation</div>
-              )}
-            </div>
-          </div>
-        ))}
 
-        {loading && (
-          <div className="message assistant">
-            <div className="msg-avatar ai">A</div>
-            <div className="msg-body">
-              <div className="msg-bubble typing">
-                <span/><span/><span/>
+                  <div className={`rounded-2xl px-4 py-3 text-[14px] leading-relaxed max-w-none ${msg.role === "user"
+                    ? "glass-panel hairline text-foreground/90 rounded-tr-sm"
+                    : "glass-panel hairline text-foreground/90 rounded-tl-sm prose prose-invert"
+                    }`}>
+                    {msg.role === "assistant" ? <ReactMarkdown>{msg.content}</ReactMarkdown> : msg.content}
+                  </div>
+
+                  {msg.flagged && (
+                    <span className="mt-1.5 text-[11px] px-2.5 py-1 rounded-lg bg-destructive/15 text-destructive self-start">
+                      Content flagged by moderation
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
+            ))}
+
+            {loading && (
+              <div className="flex gap-3">
+                <div className="h-8 w-8 shrink-0 rounded-full bg-foreground text-background flex items-center justify-center text-[12px] font-bold mt-0.5">
+                  <Shield size={15} strokeWidth={2} />
+                </div>
+                <div className="glass-panel hairline rounded-2xl rounded-tl-sm px-5 py-4 flex items-center gap-1.5">
+                  {[0, 0.2, 0.4].map((delay, i) => (
+                    <span key={i} className="h-2 w-2 rounded-full bg-muted-foreground/60 animate-bounce" style={{ animationDelay: `${delay}s` }} />
+                  ))}
+                </div>
+              </div>
+            )}
+            <div ref={bottomRef} />
           </div>
         )}
-        <div ref={bottomRef}/>
       </div>
 
-      <div className="input-bar">
-        <input type="file" accept=".pdf" ref={fileRef} onChange={handleUpload} style={{ display: "none" }}/>
-        <div className="input-inner">
+      {/* Input bar — pinned to bottom */}
+      <div className={`flex-shrink-0 px-6 lg:px-10 ${showWelcome ? "pb-10" : "pb-6"} pt-4`}>
+        <input type="file" accept=".pdf" ref={fileRef} onChange={handleUpload} className="hidden" />
+
+        <div className={`mx-auto flex flex-col gap-0 rounded-3xl glass-panel hairline gold-glow overflow-hidden transition-all ${showWelcome ? "max-w-2xl" : "max-w-3xl"}`}>
           <input
-            className="chat-input"
             value={input}
             onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && sendMessage()}
-            placeholder="Ask about AI standards, compliance requirements..."
+            onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage()}
+            placeholder="Ask about AI compliance, risk tiers, obligations..."
             disabled={loading}
+            className="bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/50 text-[14px] px-5 pt-4 pb-2 w-full disabled:opacity-60"
           />
-          <input
-            type="password"
-            className="chat-pdf-password-input"
-            value={uploadPassword}
-            onChange={e => setUploadPassword(e.target.value)}
-            placeholder="PDF Pass (optional)"
-            title="Optional password for password-protected PDFs"
-            style={{
-              width: '120px',
-              border: 'none',
-              outline: 'none',
-              fontSize: '12px',
-              color: 'var(--ink)',
-              borderLeft: '1px solid var(--grey-200)',
-              paddingLeft: '8px',
-              fontFamily: 'inherit',
-              background: 'transparent'
-            }}
-          />
-          <div className="input-actions">
-            <button className="input-btn" onClick={() => fileRef.current.click()} disabled={uploading} title="Upload document">
-              {uploading ? (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                </svg>
-              ) : (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-                </svg>
-              )}
-            </button>
-            <button className="send-btn" onClick={sendMessage} disabled={loading || !input.trim()}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-              </svg>
-            </button>
+
+          <div className="flex items-center justify-between px-4 pb-3">
+            {/* PDF password field */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                title="Upload PDF document"
+                className="h-8 w-8 rounded-full bg-[oklch(1_0_0/0.05)] hover:bg-[oklch(1_0_0/0.1)] flex items-center justify-center text-muted-foreground transition-colors disabled:opacity-40"
+              >
+                {uploading ? <Loader2 size={15} className="animate-spin" /> : <Paperclip size={15} strokeWidth={1.8} />}
+              </button>
+              <input
+                type="password"
+                value={uploadPassword}
+                onChange={e => setUploadPassword(e.target.value)}
+                placeholder="PDF pass (optional)"
+                className="bg-transparent border-none outline-none text-[12px] text-muted-foreground placeholder:text-muted-foreground/40 w-32"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowSessions(!showSessions)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[oklch(1_0_0/0.05)] hover:bg-[oklch(1_0_0/0.1)] transition-colors text-[12px] text-muted-foreground"
+              >
+                <Clock size={13} /> History
+              </button>
+              <button
+                onClick={newChat}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[oklch(1_0_0/0.05)] hover:bg-[oklch(1_0_0/0.1)] transition-colors text-[12px] text-muted-foreground"
+              >
+                <Plus size={13} /> New
+              </button>
+              <button
+                onClick={sendMessage}
+                disabled={loading || !input.trim()}
+                className="h-8 w-8 bg-foreground text-background rounded-full flex items-center justify-center gold-glow hover:opacity-90 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Send size={13} strokeWidth={2.5} />
+              </button>
+            </div>
           </div>
         </div>
       </div>

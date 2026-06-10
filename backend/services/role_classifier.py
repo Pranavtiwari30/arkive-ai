@@ -153,7 +153,6 @@ def classify_role(name: str, involvement: str, origin: str, jurisdiction_context
         
         result["classification_id"] = str(uuid.uuid4())
         result["generated_at"] = datetime.now(timezone.utc).isoformat()
-        result["disclaimer"] = "This report is informational only and does not constitute legal advice or a conformity assessment."
         return result
         
     except (json.JSONDecodeError, ValidationError, Exception) as e:
@@ -172,8 +171,7 @@ def classify_role(name: str, involvement: str, origin: str, jurisdiction_context
             dual_role=False,
             cannot_determine_reason=f"Failed to parse or validate structural output: {str(e)}",
             classification_id=str(uuid.uuid4()),
-            generated_at=datetime.now(timezone.utc).isoformat(),
-            disclaimer="This report is informational only and does not constitute legal advice or a conformity assessment."
+            generated_at=datetime.now(timezone.utc).isoformat()
         )
         return fallback.dict()
 
