@@ -4,10 +4,16 @@ import { useNavigate } from 'react-router-dom';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const navigate = useNavigate();
 
   const handleAuth = (e) => {
     e.preventDefault();
+    if (!email || !password) return;
+    if (!isLogin && !name) return;
+    
     localStorage.setItem('isAuthenticated', 'true');
     navigate('/');
   };
@@ -72,6 +78,9 @@ export default function Auth() {
               <UserIcon size={18} strokeWidth={1.7} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 placeholder="Full name"
                 className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-[oklch(0.18_0.03_285/0.6)] hairline text-sm outline-none focus:ring-1 focus:ring-[oklch(0.7_0.22_305/0.5)] transition-all placeholder:text-muted-foreground"
               />
@@ -82,6 +91,9 @@ export default function Auth() {
             <Mail size={18} strokeWidth={1.7} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="you@company.com"
               className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-[oklch(0.18_0.03_285/0.6)] hairline text-sm outline-none focus:ring-1 focus:ring-[oklch(0.7_0.22_305/0.5)] transition-all placeholder:text-muted-foreground"
             />
@@ -91,6 +103,10 @@ export default function Auth() {
             <Lock size={18} strokeWidth={1.7} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="password"
+              required
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
               className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-[oklch(0.18_0.03_285/0.6)] hairline text-sm outline-none focus:ring-1 focus:ring-[oklch(0.7_0.22_305/0.5)] transition-all placeholder:text-muted-foreground"
             />
