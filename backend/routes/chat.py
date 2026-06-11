@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import Optional
 from services.rag import generate_answer
 from db.mongo import sessions_col, messages_col
-from middleware.auth import get_optional_user
+from middleware.auth import get_current_user
 from datetime import datetime
 from bson import ObjectId
 
@@ -16,7 +16,7 @@ class ChatRequest(BaseModel):
 @router.post("/")
 async def chat(
     request: ChatRequest,
-    user: dict = Depends(get_optional_user)
+    user: dict = Depends(get_current_user)
 ):
     user_id = user["user_id"]
 
@@ -73,7 +73,11 @@ async def chat(
     return result
 
 @router.get("/sessions/{user_id}")
-async def get_sessions(user_id: str):
+async def get_sessions(user_id: str, user: dict = Depends(get_current_user)):
+    if user["user_id"] != user_id:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Not authorized to view these sessions")
+        
     sessions = list(sessions_col.find(
         {"user_id": user_id},
         {"_id": 1, "created_at": 1, "last_active": 1}
@@ -87,7 +91,13 @@ async def get_sessions(user_id: str):
     return {"sessions": sessions}
 
 @router.get("/history/{session_id}")
-async def get_history(session_id: str):
+async def get_history(session_id: str, user: dict = Depends(get_current_user)):
+    # Verify session belongs to user
+    session = sessions_col.find_one({"_id": ObjectId(session_id)})
+    if not session or session["user_id"] != user["user_id"]:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Not authorized to view this session")
+
     messages = list(messages_col.find(
         {"session_id": session_id},
         {"_id": 0}

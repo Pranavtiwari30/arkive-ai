@@ -6,7 +6,7 @@ from services.model_router import routed_chat
 from services.groq_client import GroqServiceError
 from services.logger import get_logger
 from db.mongo import documents_col
-from middleware.auth import get_optional_user
+from middleware.auth import get_current_user
 from pydantic import BaseModel, ValidationError
 from typing import List, Optional
 import os, shutil, json, re
@@ -167,7 +167,7 @@ from datetime import datetime, timezone
 async def compliance_check(
     file: UploadFile = File(...),
     password: str = Form(None),
-    user: dict = Depends(get_optional_user)
+    user: dict = Depends(get_current_user)
 ):
 
     # Validate file extension

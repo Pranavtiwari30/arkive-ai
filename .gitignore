@@ -11,6 +11,7 @@ __pycache__/
 backend/chroma_db/
 
 # User uploaded files only — keep knowledge base PDFs
+backend/uploads/*.pdf
 backend/uploads/temp_*
 
 # Node modules

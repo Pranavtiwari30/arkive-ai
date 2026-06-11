@@ -6,7 +6,11 @@ from bson import ObjectId
 import os
 
 # JWT Configuration
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "arkive-ai-secret-change-in-production")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    if os.getenv("ENV") == "production":
+        raise RuntimeError("JWT_SECRET_KEY must be set in production")
+    SECRET_KEY = "arkive-ai-secret-change-in-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 
