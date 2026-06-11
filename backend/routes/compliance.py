@@ -167,7 +167,7 @@ from datetime import datetime, timezone
 async def compliance_check(
     file: UploadFile = File(...),
     password: str = Form(None),
-    user: dict = Depends(get_optional_user)
+    user: dict = Depends(get_current_user)
 ):
 
     # Validate file extension

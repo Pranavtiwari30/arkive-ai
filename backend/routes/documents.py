@@ -18,7 +18,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 
 from db.mongo import documents_col
-from middleware.auth import get_current_user, get_optional_user
+from middleware.auth import get_current_user
 from services.audit import log_event
 from services.embeddings import add_chunks_to_vector_store
 from services.ingestion import (
@@ -115,7 +115,7 @@ async def upload_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     password: str | None = Form(None),
-    user: dict = Depends(get_optional_user),
+    user: dict = Depends(get_current_user),
 ):
     """
     Upload a document for ingestion.
@@ -209,7 +209,7 @@ async def task_status(task_id: str):
 
 
 @router.get("/")
-async def list_documents(user: dict = Depends(get_optional_user)):
+async def list_documents(user: dict = Depends(get_current_user)):
     """List documents for the current user/org."""
     query: dict = {}
     if user.get("org_id"):

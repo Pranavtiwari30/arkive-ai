@@ -4,7 +4,9 @@ import AppShell from './components/AppShell';
 import ChatComponent from './components/Chat';
 import Auth from './pages/Auth';
 import RoleClassification from './pages/RoleClassification';
-import { RiskTier, Documents, AuditLogs } from './pages/Placeholders';
+import { RiskTier } from './pages/Placeholders';
+import Documents from './components/Documents';
+import AuditLogs from './components/AuditLogs';
 import RedTeamComponent from './components/RedTeam';
 import ComplianceCheck from './components/ComplianceCheck';
 

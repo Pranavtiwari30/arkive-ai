@@ -1,21 +1,48 @@
 import React, { useState } from 'react';
 import { Shield, Mail, Lock, UserIcon, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
+import api from '../api';
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  const handleAuth = (e) => {
+  const handleAuth = async (e) => {
     e.preventDefault();
     if (!email || !password) return;
     if (!isLogin && !name) return;
     
-    localStorage.setItem('isAuthenticated', 'true');
-    navigate('/');
+    setLoading(true);
+    setError(null);
+
+    try {
+      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
+      const payload = isLogin 
+        ? { email, password }
+        : { email, password, display_name: name };
+
+      const res = await api.post(endpoint, payload);
+      const { access_token, user_id, display_name, email: userEmail } = res.data;
+
+      localStorage.setItem('arkive_token', access_token);
+      localStorage.setItem('arkive_user', JSON.stringify({ user_id, display_name, email: userEmail }));
+      localStorage.setItem('isAuthenticated', 'true');
+      
+      navigate('/');
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      if (Array.isArray(detail)) {
+        setError(detail[0].msg);
+      } else {
+        setError(typeof detail === 'string' ? detail : 'Authentication failed.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -120,12 +147,19 @@ export default function Auth() {
             </div>
           )}
 
+          {error && (
+            <div className="text-red-500 text-sm mt-2 text-center">
+              {error}
+            </div>
+          )}
+
           <button
             type="submit"
-            className={`w-full bg-foreground text-background rounded-2xl py-3.5 flex items-center justify-center gap-2 text-sm font-semibold hover:bg-[oklch(0.9_0.01_300)] transition-colors ${!isLogin ? 'mt-2' : ''}`}
+            disabled={loading}
+            className={`w-full bg-foreground text-background rounded-2xl py-3.5 flex items-center justify-center gap-2 text-sm font-semibold hover:bg-[oklch(0.9_0.01_300)] transition-colors disabled:opacity-50 ${!isLogin ? 'mt-2' : ''}`}
           >
-            <span>{isLogin ? 'Sign in' : 'Create account'}</span>
-            <ArrowRight size={16} strokeWidth={2} />
+            <span>{loading ? 'Processing...' : (isLogin ? 'Sign in' : 'Create account')}</span>
+            {!loading && <ArrowRight size={16} strokeWidth={2} />}
           </button>
         </form>
 
