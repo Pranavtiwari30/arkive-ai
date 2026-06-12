@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 from services.role_classifier import classify_role, RoleClassificationRequest
 from middleware.auth import get_current_user
 
@@ -6,7 +6,7 @@ router = APIRouter()
 
 @router.post("/")
 async def classify_role_endpoint(
-    request: Request,
+    request: RoleClassificationRequest,
     user: dict = Depends(get_current_user)
 ):
     result = classify_role(

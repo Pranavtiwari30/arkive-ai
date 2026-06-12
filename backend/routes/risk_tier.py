@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 from services.risk_classifier import classify_risk_tier, RiskClassificationRequest
 from middleware.auth import get_current_user
 
@@ -6,7 +6,7 @@ router = APIRouter()
 
 @router.post("/")
 async def classify_risk_tier_endpoint(
-    request: Request,
+    request: RiskClassificationRequest,
     user: dict = Depends(get_current_user)
 ):
     result = classify_risk_tier(
