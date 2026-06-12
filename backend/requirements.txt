@@ -36,8 +36,7 @@ weasyprint==62.3; sys_platform != "win32"   # HTML→PDF (Linux/Mac prod)
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-bcrypt==4.3.0
+bcrypt==4.3.0                     # used directly in services/auth.py (passlib removed — incompatible with bcrypt 4.x)
 
 # ── Caching ───────────────────────────────────────────────────────────────────
 redis==5.2.1
