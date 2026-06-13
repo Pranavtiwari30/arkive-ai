@@ -21,6 +21,9 @@ import os
 import sys
 from pymongo import MongoClient, IndexModel, ASCENDING, DESCENDING
 from dotenv import load_dotenv
+from services.logger import get_logger
+
+log = get_logger(__name__)
 
 # Fix Windows console encoding
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
@@ -140,11 +143,11 @@ def _ensure_indexes():
     except Exception:
         pass
 
-    print("✅ MongoDB indexes ensured")
+    log.info("mongo_indexes_ensured")
 
 
 try:
     _ensure_indexes()
-    print(f"✅ MongoDB connected → {MONGO_DB_NAME}")
+    log.info("mongo_connected", extra={"db": MONGO_DB_NAME})
 except Exception as e:
-    print(f"⚠️  MongoDB index setup warning: {e}")
+    log.warning("mongo_index_setup_warning", extra={"error": str(e)})

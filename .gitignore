@@ -29,3 +29,8 @@ venv/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Deprecated unused components and debug scripts
+backend/test_auth_debug.py
+frontend/src/components/Login.*
+frontend/src/components/AuthPage.*
