@@ -1,52 +1,67 @@
+/* ── Page layout ─────────────────────────────────────────────────────────── */
 .page-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  background: var(--grey-50);
+  height: 100%;
+  background: transparent;
+  color: var(--foreground);
 }
 
 .page-topbar {
-  background: var(--white);
-  border-bottom: 1px solid var(--grey-200);
-  padding: 0 28px;
-  height: 58px;
+  background: transparent;
+  border-bottom: 1px solid oklch(1 0 0 / 0.08);
+  padding: 0 4px;
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
+  margin-bottom: 24px;
 }
 
 .page-topbar-left { display: flex; flex-direction: column; }
-.page-topbar-title { font-size: 14.5px; font-weight: 600; color: var(--ink); }
-.page-topbar-sub { font-size: 11.5px; color: var(--grey-500); margin-top: 1px; }
+.page-topbar-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: oklch(0.97 0 0);
+  letter-spacing: -0.01em;
+}
+.page-topbar-sub {
+  font-size: 11.5px;
+  color: oklch(0.6 0 0);
+  margin-top: 2px;
+}
 
 .topbar-btn {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 7px 14px;
-  border-radius: 7px;
-  font-size: 13px;
+  border-radius: 10px;
+  font-size: 12.5px;
   font-weight: 500;
-  font-family: 'DM Sans', sans-serif;
   cursor: pointer;
   transition: all 0.15s;
-  background: transparent;
-  color: var(--grey-700);
-  border: 1px solid var(--grey-200);
+  background: oklch(1 0 0 / 0.05);
+  color: oklch(0.65 0 0);
+  border: 1px solid oklch(1 0 0 / 0.1);
+}
+.topbar-btn:hover {
+  background: oklch(1 0 0 / 0.1);
+  color: oklch(0.9 0 0);
 }
 
-.topbar-btn:hover { background: var(--grey-50); }
-
+/* ── Content area ────────────────────────────────────────────────────────── */
 .page-content {
   flex: 1;
   overflow-y: auto;
-  padding: 28px 32px;
+  padding: 4px 0;
 }
 
+/* ── States ──────────────────────────────────────────────────────────────── */
 .state-message {
   font-size: 14px;
-  color: var(--grey-500);
+  color: oklch(0.6 0 0);
   padding: 20px 0;
 }
 
@@ -61,23 +76,25 @@
 }
 
 .empty-icon {
-  width: 56px;
-  height: 56px;
-  background: var(--grey-100);
+  width: 52px;
+  height: 52px;
+  background: oklch(1 0 0 / 0.05);
+  border: 1px solid oklch(1 0 0 / 0.08);
   border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--grey-300);
+  color: oklch(0.45 0 0);
 }
 
 .empty-state p {
-  font-size: 14px;
-  color: var(--grey-500);
+  font-size: 13.5px;
+  color: oklch(0.5 0 0);
   max-width: 320px;
   line-height: 1.6;
 }
 
+/* ── Uploaded docs list ──────────────────────────────────────────────────── */
 .docs-list {
   display: flex;
   flex-direction: column;
@@ -86,37 +103,45 @@
 }
 
 .doc-card {
-  background: var(--white);
-  border: 1px solid var(--grey-200);
-  border-radius: 11px;
+  background: oklch(1 0 0 / 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid oklch(1 0 0 / 0.1);
+  border-radius: 14px;
   padding: 16px 20px;
   display: flex;
   align-items: center;
   gap: 14px;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, background 0.15s;
 }
-
-.doc-card:hover { border-color: var(--grey-300); }
+.doc-card:hover {
+  background: oklch(1 0 0 / 0.07);
+  border-color: oklch(1 0 0 / 0.18);
+}
 
 .doc-file-icon {
   width: 38px;
   height: 38px;
-  background: var(--blue-light);
-  border-radius: 9px;
+  background: oklch(0.55 0.18 290 / 0.2);
+  border: 1px solid oklch(0.55 0.18 290 / 0.3);
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--blue);
+  color: oklch(0.75 0.18 290);
   flex-shrink: 0;
 }
 
-.doc-info { flex: 1; }
+.doc-info { flex: 1; min-width: 0; }
 
 .doc-name {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
-  color: var(--ink);
+  color: oklch(0.92 0 0);
   margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .doc-meta {
@@ -131,123 +156,113 @@
   align-items: center;
   gap: 4px;
   font-size: 11.5px;
-  color: var(--grey-500);
+  color: oklch(0.55 0 0);
 }
 
 .doc-meta-date {
   font-size: 11px;
-  color: var(--grey-300);
-  font-family: 'DM Mono', monospace;
+  color: oklch(0.4 0 0);
+  font-family: 'DM Mono', 'Fira Mono', monospace;
   margin-left: auto;
 }
 
-.doc-badge {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border-radius: 5px;
-  font-size: 11px;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.doc-badge.permanent {
-  background: var(--green-light);
-  border: 1px solid #b7e4c7;
-  color: var(--green);
-}
-
-.doc-badge.ttl-green {
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  color: #059669;
-}
-
-.doc-badge.ttl-amber {
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  color: #d97706;
-}
-
-.doc-badge.ttl-red {
-  background: #fef2f2;
-  border: 1px solid #fca5a5;
-  color: #dc2626;
-}
-
-/* KB Table */
+/* ── KB metadata table ───────────────────────────────────────────────────── */
 .kb-metadata-container {
-  background: var(--white);
-  border: 1px solid var(--grey-200);
-  border-radius: 10px;
+  background: oklch(1 0 0 / 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid oklch(1 0 0 / 0.1);
+  border-radius: 14px;
   padding: 20px;
   margin-bottom: 24px;
   max-width: 880px;
+  overflow: hidden;
 }
+
 .kb-metadata-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
+
 .kb-metadata-title {
-  font-size: 14.5px;
+  font-size: 13.5px;
   font-weight: 600;
-  color: var(--ink);
+  color: oklch(0.92 0 0);
 }
+
 .kb-metadata-label {
   font-size: 11.5px;
-  color: var(--grey-500);
+  color: oklch(0.5 0 0);
 }
+
 .kb-table {
   width: 100%;
   border-collapse: collapse;
 }
-.kb-table th, .kb-table td {
+
+.kb-table th,
+.kb-table td {
   text-align: left;
-  padding: 10px 12px;
+  padding: 10px 14px;
   font-size: 12.5px;
-  border-bottom: 1px solid var(--grey-100);
+  border-bottom: 1px solid oklch(1 0 0 / 0.07);
 }
+
 .kb-table th {
   font-weight: 600;
-  color: var(--grey-700);
-  background: var(--grey-50);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: oklch(0.5 0 0);
+  background: oklch(1 0 0 / 0.03);
 }
+
+.kb-table td {
+  color: oklch(0.75 0 0);
+}
+
 .kb-table tr:last-child td {
   border-bottom: none;
 }
 
-/* Expiry Warning Banner */
+.kb-table tbody tr:hover td {
+  color: oklch(0.9 0 0);
+  background: oklch(1 0 0 / 0.03);
+}
+
+/* ── Expiry warning banner ───────────────────────────────────────────────── */
 .expiry-warning-banner {
   display: flex;
   align-items: flex-start;
   gap: 10px;
   padding: 12px 18px;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  border-radius: 10px;
+  background: oklch(0.75 0.15 60 / 0.1);
+  border: 1px solid oklch(0.75 0.15 60 / 0.3);
+  border-radius: 12px;
   margin-bottom: 16px;
   max-width: 880px;
   font-size: 12.5px;
   line-height: 1.6;
-  color: #92400e;
+  color: oklch(0.8 0.1 60);
 }
 
 .expiry-warning-banner svg {
   flex-shrink: 0;
   margin-top: 2px;
-  color: #d97706;
+  color: oklch(0.75 0.15 60);
 }
 
-/* Doc card warning state */
+/* ── Doc warning state ───────────────────────────────────────────────────── */
 .doc-card-warning {
-  border-color: #fde68a;
-  background: #fffdf5;
+  border-color: oklch(0.75 0.15 60 / 0.35);
+  background: oklch(0.75 0.1 60 / 0.06);
 }
 
-/* Doc badges container */
+/* ── Badges container ────────────────────────────────────────────────────── */
 .doc-badges {
   display: flex;
   flex-direction: column;
@@ -256,10 +271,45 @@
   flex-shrink: 0;
 }
 
-/* Expiring badge */
+/* ── Badges ──────────────────────────────────────────────────────────────── */
+.doc-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.doc-badge.permanent {
+  background: oklch(0.55 0.18 145 / 0.15);
+  border: 1px solid oklch(0.55 0.18 145 / 0.35);
+  color: oklch(0.7 0.18 145);
+}
+
+.doc-badge.ttl-green {
+  background: oklch(0.55 0.18 145 / 0.12);
+  border: 1px solid oklch(0.55 0.18 145 / 0.3);
+  color: oklch(0.68 0.18 145);
+}
+
+.doc-badge.ttl-amber {
+  background: oklch(0.75 0.15 60 / 0.12);
+  border: 1px solid oklch(0.75 0.15 60 / 0.3);
+  color: oklch(0.78 0.12 60);
+}
+
+.doc-badge.ttl-red {
+  background: oklch(0.55 0.22 25 / 0.12);
+  border: 1px solid oklch(0.55 0.22 25 / 0.3);
+  color: oklch(0.68 0.2 25);
+}
+
 .doc-badge.expiring {
-  background: #fef2f2;
-  border: 1px solid #fca5a5;
-  color: #dc2626;
+  background: oklch(0.55 0.22 25 / 0.12);
+  border: 1px solid oklch(0.55 0.22 25 / 0.3);
+  color: oklch(0.68 0.2 25);
   font-size: 10px;
 }

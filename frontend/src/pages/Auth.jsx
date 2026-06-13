@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Shield, Mail, Lock, UserIcon, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
+import { useAuth } from '../context/AuthContext';
+
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -10,6 +12,7 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -26,12 +29,8 @@ export default function Auth() {
         : { email, password, display_name: name };
 
       const res = await api.post(endpoint, payload);
-      const { access_token, user_id, display_name, email: userEmail } = res.data;
-
-      localStorage.setItem('arkive_token', access_token);
-      localStorage.setItem('arkive_user', JSON.stringify({ user_id, display_name, email: userEmail }));
-      localStorage.setItem('isAuthenticated', 'true');
-      
+      // login() writes to localStorage AND updates React state atomically
+      login(res.data);
       navigate('/');
     } catch (err) {
       const detail = err.response?.data?.detail;

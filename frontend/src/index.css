@@ -76,3 +76,14 @@
 
   /* Custom utility to override input focus ring globally if needed, though ring classes will be used */
 }
+
+@keyframes arkive-dot-bounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}

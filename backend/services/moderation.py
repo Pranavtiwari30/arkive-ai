@@ -18,10 +18,10 @@ from services.logger import get_logger
 log = get_logger(__name__)
 
 # ── Available Guard models in order of preference ─────────────────────────────
-# Updated June 2026 — llama-guard-4-12b decommissioned, llama-guard-3-11b 404
-_GUARD_MODELS_PREFERRED = [
-    "meta-llama/llama-guard-3-8b",   # active as of June 2026
-]
+# llama-guard models not available on free Groq tier — using custom classifier
+# fallback (llama-3.1-8b-instant) as primary moderation path instead.
+# To re-enable: add model IDs here once guard access is confirmed on your key.
+_GUARD_MODELS_PREFERRED = []
 _FALLBACK_CLASSIFIER_MODEL = "llama-3.1-8b-instant"
 
 # Discovered at startup — set to None if no Guard model is available

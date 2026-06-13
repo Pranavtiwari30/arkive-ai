@@ -102,16 +102,30 @@ def generate_answer(query: str, user_id: str = "user", org_id: str | None = None
     relevant_chunks = retrieve_relevant_chunks(query, top_k=5)
 
     if not relevant_chunks:
-        return {
-            "answer": "I couldn't find relevant information in the knowledge base for your query.",
-            "sources": [],
-            "flagged": False,
-            "confidence": 0,
-            "confidence_explanation": "No relevant chunks found in the knowledge base.",
-            "needs_human_review": True,
-            "moderation_status": moderation_result.get("moderation_status"),
-            "chunks_used": 0,
-        }
+        # No KB match — answer as a helpful AI assistant (general conversation)
+        try:
+            response = routed_chat(
+                query=query,
+                task_type="general",
+                messages=[
+                    {"role": "system", "content": "You are Arkive, a compliance intelligence assistant. Answer helpfully and conversationally. For compliance or AI governance topics, provide expert guidance. For general conversation, respond naturally."},
+                    {"role": "user", "content": query},
+                ],
+                temperature=0.7,
+                max_tokens=600,
+            )
+            return {
+                "answer": response.choices[0].message.content,
+                "sources": [],
+                "flagged": False,
+                "confidence": 0,
+                "confidence_explanation": "Answered from general knowledge — no specific KB documents matched.",
+                "needs_human_review": False,
+                "moderation_status": moderation_result.get("moderation_status"),
+                "chunks_used": 0,
+            }
+        except GroqServiceError as e:
+            return {**e.to_api_response(), "sources": [], "flagged": False, "chunks_used": 0}
 
     # ── Step 4: Build context with rich citation metadata ────────────────────
     context = ""
@@ -124,17 +138,31 @@ def generate_answer(query: str, user_id: str = "user", org_id: str | None = None
     # ── Step 5: Route model based on query complexity ─────────────────────────
     model = route_model(query, task_type="rag")
 
-    prompt = f"""You are Arkive AI, an EU AI Act compliance intelligence assistant.
+    # If top chunk relevance is very low, use hybrid mode (general + KB context)
+    max_score = max((c.get("score", 0) for c in relevant_chunks), default=0)
+    if max_score < 0.3:
+        prompt = f"""You are Arkive, a compliance intelligence assistant.
+
+Some potentially related context from the knowledge base is provided below, but it may not be directly relevant to the question.
+Use your own knowledge to answer accurately. Only cite the context if it directly applies.
+
+Context (may not be relevant):
+{context}
+
+Question: {query}
+
+Answer:"""
+    else:
+        prompt = f"""You are Arkive, a compliance intelligence assistant.
 
 Context from the knowledge base (EU AI Act, UNESCO AI Ethics, OECD AI Principles):
 {context}
 
 Instructions:
-- Answer ONLY using the provided context above
-- If the answer is not in the context, say "I don't have enough information about this in my knowledge base"
+- Prefer the provided context when answering, but supplement with your own expert knowledge if needed
 - When referencing regulations, cite the specific article number (e.g. "Article 13 of the EU AI Act")
-- Be precise and concise
-- List which sources you used at the end of your answer
+- Be precise and conversational
+- If context is used, note the sources at the end
 
 Question: {query}
 

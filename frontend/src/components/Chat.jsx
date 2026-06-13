@@ -2,8 +2,12 @@ import { useState, useRef, useEffect } from "react"
 import { Send, Paperclip, Clock, Plus, Shield, FileText, CheckSquare, Loader2 } from "lucide-react"
 import api from "../api"
 import ReactMarkdown from "react-markdown"
+import { useAuth } from "../context/AuthContext"
 
-function Chat({ userId }) {
+function Chat() {
+  const { user } = useAuth()
+  const userId = user?.user_id || ''
+  const displayName = user?.display_name || 'there'
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
@@ -163,7 +167,7 @@ function Chat({ userId }) {
             </div>
 
             <h1 className="font-serif text-5xl md:text-6xl tracking-tight mb-4">
-              Ready to verify, <span className="text-gold italic">John</span>?
+              Ready to verify, <span className="text-gold italic">{displayName}</span>?
             </h1>
             <p className="text-[15px] text-muted-foreground max-w-lg mb-8 leading-relaxed">
               Query international AI standards or upload your organisation's policy for an instant gap analysis.
@@ -189,11 +193,12 @@ function Chat({ userId }) {
             {messages.map((msg, i) => (
               <div key={i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
                 {/* Avatar */}
-                <div className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center text-[12px] font-bold mt-0.5 ${msg.role === "assistant"
-                  ? "bg-foreground text-background"
-                  : "bg-primary text-white"
-                  }`}>
-                  {msg.role === "assistant" ? <Shield size={15} strokeWidth={2} /> : (userId?.charAt(0).toUpperCase() || "U")}
+                <div className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center text-[12px] font-bold mt-0.5 ${
+                  msg.role === "assistant"
+                    ? "bg-foreground text-background"
+                    : "bg-primary text-white"
+                }`}>
+                  {msg.role === "assistant" ? <Shield size={15} strokeWidth={2} /> : (displayName?.charAt(0).toUpperCase() || "U")}
                 </div>
 
                 {/* Bubble */}
@@ -216,10 +221,11 @@ function Chat({ userId }) {
                     </div>
                   )}
 
-                  <div className={`rounded-2xl px-4 py-3 text-[14px] leading-relaxed max-w-none ${msg.role === "user"
-                    ? "glass-panel hairline text-foreground/90 rounded-tr-sm"
-                    : "glass-panel hairline text-foreground/90 rounded-tl-sm prose prose-invert"
-                    }`}>
+                  <div className={`rounded-2xl px-4 py-3 text-[14px] leading-relaxed max-w-none ${
+                    msg.role === "user"
+                      ? "bg-[oklch(0.5_0.2_305/0.15)] border border-[oklch(0.6_0.2_305/0.2)] text-foreground/90 rounded-tr-sm"
+                      : "glass-panel hairline text-foreground/90 rounded-tl-sm prose prose-invert"
+                  }`}>
                     {msg.role === "assistant" ? <ReactMarkdown>{msg.content}</ReactMarkdown> : msg.content}
                   </div>
 
@@ -237,9 +243,19 @@ function Chat({ userId }) {
                 <div className="h-8 w-8 shrink-0 rounded-full bg-foreground text-background flex items-center justify-center text-[12px] font-bold mt-0.5">
                   <Shield size={15} strokeWidth={2} />
                 </div>
-                <div className="glass-panel hairline rounded-2xl rounded-tl-sm px-5 py-4 flex items-center gap-1.5">
-                  {[0, 0.2, 0.4].map((delay, i) => (
-                    <span key={i} className="h-2 w-2 rounded-full bg-muted-foreground/60 animate-bounce" style={{ animationDelay: `${delay}s` }} />
+                <div className="glass-panel hairline rounded-2xl rounded-tl-sm px-5 py-4 flex items-center gap-2">
+                  {[0, 0.15, 0.3].map((delay, i) => (
+                    <span
+                      key={i}
+                      style={{
+                        display: 'inline-block',
+                        width: '7px',
+                        height: '7px',
+                        borderRadius: '50%',
+                        background: 'oklch(0.78 0.18 305)',
+                        animation: `arkive-dot-bounce 1.2s ease-in-out ${delay}s infinite`,
+                      }}
+                    />
                   ))}
                 </div>
               </div>

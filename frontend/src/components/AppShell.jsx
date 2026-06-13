@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { 
   Shield, MessageSquare, CheckSquare, BarChart, 
   Users, Folder, ShieldAlert, History, LogOut, Plus 
@@ -17,6 +18,11 @@ const navItems = [
 export default function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  const displayName = user?.display_name || 'User';
+  const userEmail = user?.email || '';
+  const avatarLetter = displayName.charAt(0).toUpperCase();
 
   return (
     <div className="flex min-h-screen bg-black">
@@ -92,15 +98,15 @@ export default function AppShell() {
         {/* Bottom user row */}
         <div className="mt-auto flex items-center gap-3 rounded-2xl bg-[oklch(0.18_0.03_290/0.5)] px-3 py-2.5 hairline">
           <div className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-primary to-[oklch(0.5_0.22_280)] flex items-center justify-center text-white text-[13px] font-semibold select-none">
-            J
+            {avatarLetter}
           </div>
           <div className="flex flex-col flex-1 min-w-0">
-            <span className="text-[13px] font-medium truncate leading-tight">john</span>
-            <span className="text-[11px] text-muted-foreground truncate leading-tight">test12345@gmail.com</span>
+            <span className="text-[13px] font-medium truncate leading-tight">{displayName}</span>
+            <span className="text-[11px] text-muted-foreground truncate leading-tight">{userEmail}</span>
           </div>
           <button
             onClick={() => {
-              localStorage.removeItem('isAuthenticated');
+              logout();
               navigate('/auth');
             }}
             className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-[oklch(1_0_0/0.06)] transition-all shrink-0"

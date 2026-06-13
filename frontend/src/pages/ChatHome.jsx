@@ -2,6 +2,8 @@ import React from 'react';
 import { Shield, CheckSquare, FileText, ArrowRight, Plus, ChevronDown, Paperclip, Mic, ArrowUp } from 'lucide-react';
 
 export default function ChatHome() {
+  const storedUser = JSON.parse(localStorage.getItem('arkive_user') || '{}');
+  const displayName = storedUser.display_name || 'there';
   return (
     <div className="h-full flex flex-col items-center justify-center -mt-10">
       
@@ -24,7 +26,7 @@ export default function ChatHome() {
 
       {/* Heading */}
       <h1 className="font-serif text-5xl md:text-6xl tracking-tight text-center mb-6">
-        Ready to verify, <span className="text-gold italic">John</span>?
+        Ready to verify, <span className="text-gold italic">{displayName}</span>?
       </h1>
 
       {/* Subtitle */}
