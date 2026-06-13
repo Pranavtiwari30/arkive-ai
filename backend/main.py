@@ -29,12 +29,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         log.error("preload_failed", extra={"error": str(e)})
 
-    # Warm up moderation — discover which Guard model is available
-    try:
-        from services.moderation import _discover_guard_model
-        _discover_guard_model()
-    except Exception as e:
-        log.warning("moderation_warmup_failed", extra={"error": str(e)})
+    # Warm up moderation in background — don't block startup waiting for Groq probe
+    import threading
+    def _warmup_moderation():
+        try:
+            from services.moderation import _discover_guard_model
+            _discover_guard_model()
+        except Exception as e:
+            log.warning("moderation_warmup_failed", extra={"error": str(e)})
+
+    threading.Thread(target=_warmup_moderation, daemon=True, name="moderation-warmup").start()
 
     log.info("arkive_ready")
     yield

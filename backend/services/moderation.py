@@ -18,11 +18,9 @@ from services.logger import get_logger
 log = get_logger(__name__)
 
 # ── Available Guard models in order of preference ─────────────────────────────
-# Update this list as Groq's catalog evolves.
+# Updated June 2026 — llama-guard-4-12b decommissioned, llama-guard-3-11b 404
 _GUARD_MODELS_PREFERRED = [
-    "meta-llama/llama-guard-4-12b",
-    "meta-llama/llama-guard-3-11b-vision-instruct",
-    "meta-llama/llama-guard-3-8b",
+    "meta-llama/llama-guard-3-8b",   # active as of June 2026
 ]
 _FALLBACK_CLASSIFIER_MODEL = "llama-3.1-8b-instant"
 

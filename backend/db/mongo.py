@@ -37,7 +37,12 @@ MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "arkive_db")
 if not MONGO_URI:
     raise RuntimeError("MONGO_URI is not set in environment variables")
 
-client = MongoClient(MONGO_URI)
+client = MongoClient(
+    MONGO_URI,
+    serverSelectionTimeoutMS=5000,   # fail fast if Atlas unreachable
+    connectTimeoutMS=5000,
+    socketTimeoutMS=10000,
+)
 db = client[MONGO_DB_NAME]
 
 # ── Collections ───────────────────────────────────────────────────────────────
